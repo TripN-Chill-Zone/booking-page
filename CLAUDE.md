@@ -21,7 +21,17 @@ and 0.2 outcomes are confirmed.
 - Critical CSS payload: css/critical-css-payload.css
 
 ## WordPress Sites
-(To be added once MCP servers are configured)
+
+| MCP Server Name | Site URL | Purpose |
+|---|---|---|
+| `wordpress-landing` | `landing.astrongpresence.com` | Landing page |
+| `wordpress-pink` | `pink.astrongpresence.com` | Property site |
+| `wordpress-test` | `test.astrongpresence.com` | Test/staging site |
+| `wordpress-seaside` | `seaside.astrongpresence.com` | Property site |
+| `wordpress-chillzone` | `chillzone.astrongpresence.com` | Property site |
+
+MCP config location: `C:\Users\Dr. COMPUTER\booking-page\.mcp.json`
+Each server uses the `cmd /c` wrapper for npx (required on Windows).
 
 ## VPS Deploy
 - Deploy user: beds24deploy
