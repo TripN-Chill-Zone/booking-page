@@ -3,21 +3,15 @@
 ## Reference Documents
 - Execution plan: docs/beds24-execution.md
 - Architecture decisions: docs/beds24-execution-context.md
-<<<<<<< HEAD
-
-## Current Status
-Phase 0 tests not yet run. Do not begin CSS/JS authoring until Phase 0.1
-and 0.2 outcomes are confirmed.
-=======
 - Beds24 admin field map: docs/beds24-admin-field-map.md
 
 ## Current Status
 - Phase 0.3 (Claude in Chrome content extraction) — PASSED
-- Phase 0.1 (WordPress widget parameter passing) — not yet run
-- Phase 0.2 (price injection feasibility) — not yet run
+- Phase 0.1 (WordPress widget parameter passing) — FAILED (fallback: custom Kadence widget)
+- Phase 0.2 (price injection feasibility) — PASSED (`#roomprice-1-{roomId}`)
+- Phase 2 (admin configuration, Chill Zone) — COMPLETE
+- Phase 3 (CSS/JS authoring) — NOT STARTED (next priority)
 - VPS deploy user — BLOCKED (waiting on Hostkey password reset)
-- Do not begin CSS/JS authoring until Phase 0.1 and 0.2 outcomes are confirmed.
->>>>>>> 1285bb8 (Add CLAUDE.md and project docs: execution plan, context doc, admin field map)
 
 ## Project Conventions
 - American spelling throughout
@@ -43,8 +37,6 @@ and 0.2 outcomes are confirmed.
 
 MCP config location: `C:\Users\Dr. COMPUTER\booking-page\.mcp.json`
 Each server uses the `cmd /c` wrapper for npx (required on Windows).
-<<<<<<< HEAD
-=======
 Plugin: `WordPress/mcp-adapter` (current, from github.com/WordPress/mcp-adapter/releases).
 
 ### MCP Capabilities
@@ -58,14 +50,28 @@ MCP cannot interact with Beds24 (separate platform, no MCP server exists).
 ## Beds24 Property
 - Property ID: 271142
 - Room IDs: Deluxe King Suite (567218), Single Bed Dorm (567219), Single Room (567220), Standard Double (567221)
+- Booking page URL: `https://www.beds24.com/booking2.php?ownerid=141266&propid=271142`
 - Booking page URL parameters: `checkin`, `numnight`, `numadult`, `numchild`, `roomid`, `propid`, `cssfile`, `layout`, `lang`, `referer`, `hidedesc`, `hidefooter`, `numdisplayed`, `group`, `nogroup`, `version`
+- Price element selector: `#roomprice-1-{roomId}`
 - Admin field IDs: see docs/beds24-admin-field-map.md
+
+### Phase 2 Config Applied (Chill Zone)
+- Style panel: brand colors set (primary `#E7A35C`, secondary `#6DA17D`, text `#2D482D`, bg `#F7FAFC`)
+- Google Fonts: Lexend + Lexend Giga loaded via `customheadtop`
+- CSS font override: in `bookingcss` field
+- Content: property description, all 4 room descriptions, general policy, cancellation policy
+- Photos: positioned per room (Suite 5, Dorm 1, Single 5, Double 10)
+
+### Known Issues for Phase 3
+- Date strip overlays the calendar — CSS positioning fix needed
+- Duplicate calendars showing — remove via layout config or CSS
+- Photos require click to show — slider collapsed by default
+- `numadult` defaults back to 1 on search
 
 ## Tool Usage
 - **Claude Code + MCP**: CSS/JS authoring, WordPress content extraction, widget verification
-- **Claude in Chrome**: Beds24 admin interaction (read/write fields), DOM inspection of booking page, visual verification
-- **Manual**: Beds24 admin configuration, photo uploads, mobile QA (real iOS device)
->>>>>>> 1285bb8 (Add CLAUDE.md and project docs: execution plan, context doc, admin field map)
+- **Claude in Chrome**: Beds24 admin interaction (read/write fields), DOM inspection of booking page, visual verification. Navigation between Beds24 admin pages now works (Session 4 confirmed).
+- **Manual**: Photo uploads, mobile QA (real iOS device)
 
 ## VPS Deploy
 - Deploy user: beds24deploy
