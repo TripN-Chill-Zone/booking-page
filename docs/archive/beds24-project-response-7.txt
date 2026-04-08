@@ -1,0 +1,34 @@
+This is an exceptionally well-structured, battle-hardened project plan. You have clearly anticipated the typical pitfalls of iframe integration, and your testing gates (especially the Phase 0 checks) establish a fantastic defensive posture. 
+
+Since the architectural decisions (iframe vs. SPA) and tooling (Claude, manual uploads) are closed, I will focus this adversarial review strictly on the execution risks, edge cases, and open vulnerabilities within the planned workflow.
+
+Here is an analysis of the fault lines where this plan might crack.
+
+### 1. The "3-Second Purgatory" (JS Hide/Reveal Risk)
+The plan attempts to hide room cards until dates are selected, relying on a JavaScript event listener with a 3-second timeout safeguard. 
+* **The Vulnerability:** Three seconds is an eternity on mobile. If the Beds24 reveal event fails to fire (due to a network hiccup or an unannounced DOM update), the user is left staring at a blank space or a stalled UI for three seconds before the rooms force-reveal. This will cause immediate bounces.
+* **The Friction Point:** If the force-reveal triggers, does it clash visually with the user suddenly interacting with the date picker? You are introducing a race condition between the user's thumb and your fallback timer.
+
+### 2. State Restoration Desync & The "Back Button" Trap
+The plan uses the parent WordPress page's `sessionStorage` to restore state (dates/guests) upon a hard refresh, acknowledging that changes made *inside* the iframe won't be saved.
+* **The Vulnerability:** You have accounted for a hard refresh, but what about the browser's "Back" button? If a guest changes their dates inside the iframe, clicks through to the Beds24 checkout, realizes they need to change something, and hits "Back" on iOS Safari, what loads? 
+* **The Friction Point:** If hitting "Back" reloads the parent page, `sessionStorage` will inject the *original* widget dates, completely wiping out the guest's in-iframe modifications. This is a severe friction point that often leads to abandoned bookings.
+
+### 3. DOM-Scraping Fragility (Phase 0.2 Price Injection)
+You are planning to use JavaScript to scrape price data from the DOM before quantity selection to create a "from €X" label. 
+* **The Vulnerability:** SaaS platforms like Beds24 push frontend updates without warning. If they change a class name, wrap the price in a new `<span>`, or alter how the DOM renders multiple bookings, your JS will either inject `null`, break entirely, or worse—inject the wrong price. 
+* **The Friction Point:** The plan says "abandon JS if tests fail in Phase 0.2," but what happens when it passes Phase 0.2, goes to production, and breaks three months later? There is no active monitoring plan defined to catch when this silent failure occurs.
+
+### 4. The Live Transaction Logistics (Phase 4)
+The QA protocol mandates a live transaction using a real payment method on the staging URL to verify the confirmation page styling.
+* **The Vulnerability:** Payment gateways (Stripe, PayPal, etc.) frequently restrict live production API keys to approved, fully secured production domains. 
+* **The Friction Point:** You may find it impossible to process a live credit card transaction from `staging.property.com` without triggering fraud alerts or gateway rejections. If you switch to test/sandbox mode to bypass this, you violate your own strict requirement, potentially masking CSS conflicts on the actual live confirmation page.
+
+### 5. The "External CSS" Global Breakage Scenario
+The CSS architecture uses a versioned external file to control all four properties. 
+* **The Vulnerability:** You have mitigated the risk of *your* updates breaking the sites by using versioned filenames and staging checks. However, if Beds24 updates their core HTML structure, **all four of your properties will break simultaneously in production**. 
+* **The Friction Point:** Rolling back to `beds24-base-v1.css` won't fix a layout broken by a Beds24 structural update. You will be racing against the clock to author a new CSS fix across four live revenue-generating pages. 
+
+***
+
+Given the inherent fragility of relying on DOM-targeting for both the JS hide/reveal mechanics and the price injection, what is our contingency plan for monitoring and alerting if Beds24 pushes a silent frontend update that breaks these scripts in production?
