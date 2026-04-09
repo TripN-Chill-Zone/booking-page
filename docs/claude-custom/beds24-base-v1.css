@@ -1,0 +1,612 @@
+/* ==========================================================================
+   beds24-base-v1.css
+   Beds24 Booking Page — Shared External Stylesheet
+   Architecture: structural rules + CSS variable-driven aesthetics
+   Served via: &cssfile= URL parameter
+   
+   Per-property theming: override :root variables in Beds24 Custom CSS field
+   
+   DOM verified against: booking2.php?propid=271142 (Layout 6, Template 6)
+   Key selectors verified:
+     Booking strip:  #b24scroller / .b24-bookingstrip / .colorbookingstrip
+     Room container: .b24fullcontainer-rooms
+     Room card:      .b24room > .panel.b24panel-room
+     Room heading:   .panel-heading.b24-roompanel-heading > .at_roomnametext
+     Room calendar:  .b24-room-cal (inside room card — DUPLICATE, hide these)
+     Offer calendar: .b24-offer-cal (inside offer section)
+     Prop calendar:  .b24-prop-60 (property-level — keep this one)
+     Checkin input:  #inputcheckin
+     Checkout input: #inputcheckout
+     Nights select:  #inputnumnight
+     Book button:    .at_bookingbut
+     Price element:  #roomprice-1-{roomId}
+     Qty select:     select[id^="sr1-"]
+     Body classes:   .colorbody .colorbody-en .layout6
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   CSS CUSTOM PROPERTIES (defaults — overridden per property in bookingcss)
+   -------------------------------------------------------------------------- */
+:root {
+  /* Brand colors */
+  --b24-color-primary: #E7A35C;
+  --b24-color-secondary: #6DA17D;
+  --b24-color-text: #2D482D;
+  --b24-color-text-light: #5a6f5a;
+  --b24-color-bg: #F7FAFC;
+  --b24-color-bg-white: #ffffff;
+  --b24-color-border: #EDF2F7;
+  --b24-color-border-subtle: #e2e8f0;
+  --b24-color-accent-hover: #d4923e;
+  --b24-color-secondary-hover: #5c8e6c;
+
+  /* Typography */
+  --b24-font-body: 'Lexend', sans-serif;
+  --b24-font-heading: 'Lexend Giga', sans-serif;
+  --b24-font-size-base: 14px;
+  --b24-font-size-sm: 13px;
+  --b24-font-size-lg: 16px;
+  --b24-font-size-xl: 20px;
+  --b24-font-size-2xl: 24px;
+  --b24-font-weight-normal: 400;
+  --b24-font-weight-medium: 500;
+  --b24-font-weight-semibold: 600;
+  --b24-font-weight-bold: 700;
+
+  /* Spacing */
+  --b24-space-xs: 4px;
+  --b24-space-sm: 8px;
+  --b24-space-md: 16px;
+  --b24-space-lg: 24px;
+  --b24-space-xl: 32px;
+  --b24-space-2xl: 48px;
+
+  /* Layout */
+  --b24-radius-sm: 6px;
+  --b24-radius-md: 10px;
+  --b24-radius-lg: 16px;
+  --b24-radius-pill: 999px;
+  --b24-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --b24-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --b24-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --b24-transition: 0.2s ease;
+}
+
+/* --------------------------------------------------------------------------
+   RESET / BASE
+   -------------------------------------------------------------------------- */
+.colorbody {
+  font-family: var(--b24-font-body) !important;
+  color: var(--b24-color-text) !important;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* --------------------------------------------------------------------------
+   TYPOGRAPHY
+   -------------------------------------------------------------------------- */
+.at_roomnametext {
+  font-family: var(--b24-font-heading) !important;
+  font-size: var(--b24-font-size-xl) !important;
+  font-weight: var(--b24-font-weight-bold) !important;
+  color: var(--b24-color-text) !important;
+  letter-spacing: -0.01em;
+}
+
+.b24-roompanel-heading {
+  font-family: var(--b24-font-heading) !important;
+  font-weight: var(--b24-font-weight-semibold) !important;
+  border: none !important;
+  background: var(--b24-color-bg-white) !important;
+  padding: var(--b24-space-md) var(--b24-space-lg) !important;
+  border-bottom: 1px solid var(--b24-color-border) !important;
+}
+
+.b24panel {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  line-height: 1.7;
+  color: var(--b24-color-text) !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--b24-font-heading) !important;
+  color: var(--b24-color-text) !important;
+}
+
+/* --------------------------------------------------------------------------
+   BOOKING STRIP
+   -------------------------------------------------------------------------- */
+.b24fullcontainer-selector {
+  background: var(--b24-color-bg-white) !important;
+  border-bottom: 1px solid var(--b24-color-border) !important;
+  box-shadow: var(--b24-shadow-sm) !important;
+  margin-bottom: var(--b24-space-xl) !important;
+  position: relative;
+  z-index: 10;
+}
+
+.b24-bookingstrip {
+  background: var(--b24-color-bg-white) !important;
+  padding: var(--b24-space-md) 0 !important;
+}
+
+.b24-bookingstrip > .row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-end !important;
+}
+
+.b24-selector-checkin,
+.b24-selector-checkout,
+.b24-selector-numnight {
+  padding-bottom: var(--b24-space-sm) !important;
+}
+
+#inputcheckin,
+#inputcheckout {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-sm) var(--b24-space-md) !important;
+  color: var(--b24-color-text) !important;
+  background: var(--b24-color-bg-white) !important;
+  transition: border-color var(--b24-transition) !important;
+  height: auto !important;
+}
+
+#inputcheckin:focus,
+#inputcheckout:focus {
+  border-color: var(--b24-color-primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(231, 163, 92, 0.15) !important;
+}
+
+#inputnumnight {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-sm) var(--b24-space-md) !important;
+  color: var(--b24-color-text) !important;
+  background: var(--b24-color-bg-white) !important;
+  height: auto !important;
+}
+
+.b24-bookingstrip label,
+.b24-bookingstrip .form-group label {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  font-weight: var(--b24-font-weight-medium) !important;
+  color: var(--b24-color-text-light) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--b24-space-xs) !important;
+}
+
+.b24-bookingstrip .input-group-addon {
+  background: var(--b24-color-bg) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  color: var(--b24-color-text-light) !important;
+}
+
+/* --------------------------------------------------------------------------
+   BUTTONS
+   -------------------------------------------------------------------------- */
+.at_bookingbut {
+  font-family: var(--b24-font-heading) !important;
+  font-size: var(--b24-font-size-base) !important;
+  font-weight: var(--b24-font-weight-semibold) !important;
+  letter-spacing: 0.02em;
+  background: var(--b24-color-primary) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-sm) var(--b24-space-xl) !important;
+  cursor: pointer;
+  transition: background var(--b24-transition), transform var(--b24-transition), box-shadow var(--b24-transition) !important;
+  text-transform: none !important;
+  box-shadow: var(--b24-shadow-sm) !important;
+}
+
+.at_bookingbut:hover {
+  background: var(--b24-color-accent-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--b24-shadow-md) !important;
+}
+
+.at_bookingbut:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  font-family: var(--b24-font-heading) !important;
+  font-weight: var(--b24-font-weight-semibold) !important;
+  background: var(--b24-color-primary) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--b24-radius-sm) !important;
+  transition: background var(--b24-transition) !important;
+  box-shadow: var(--b24-shadow-sm) !important;
+}
+
+.btn-primary:hover {
+  background: var(--b24-color-accent-hover) !important;
+}
+
+.btn-default,
+.btn-info {
+  font-family: var(--b24-font-body) !important;
+  background: var(--b24-color-bg) !important;
+  color: var(--b24-color-secondary) !important;
+  border: 1px solid var(--b24-color-secondary) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  transition: all var(--b24-transition) !important;
+}
+
+.btn-default:hover,
+.btn-info:hover {
+  background: var(--b24-color-secondary) !important;
+  color: #ffffff !important;
+}
+
+/* --------------------------------------------------------------------------
+   ROOM CARDS
+   -------------------------------------------------------------------------- */
+.b24room {
+  margin-bottom: var(--b24-space-lg) !important;
+}
+
+.b24panel-room {
+  background: var(--b24-color-bg-white) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-md) !important;
+  box-shadow: var(--b24-shadow-sm) !important;
+  overflow: hidden;
+  transition: box-shadow var(--b24-transition) !important;
+}
+
+.b24panel-room:hover {
+  box-shadow: var(--b24-shadow-md) !important;
+}
+
+.b24panel-room > .b24panel {
+  padding: var(--b24-space-lg) !important;
+}
+
+/* --------------------------------------------------------------------------
+   FIX: DUPLICATE CALENDARS — hide room-level, keep offer + property
+   -------------------------------------------------------------------------- */
+.b24-room-cal {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   FIX: PHOTO SLIDER COLLAPSED
+   Beds24 adds hidden-xs hidden-sm hidden-md hidden-lg to collapse containers
+   (#collapseslider{roomId}), requiring a click to expand. Override to show.
+   -------------------------------------------------------------------------- */
+[id^="collapseslider"] {
+  display: block !important;
+  height: auto !important;
+}
+
+.carousel.slide {
+  display: block !important;
+  visibility: visible !important;
+  min-height: 200px;
+}
+
+.carousel .item {
+  display: none;
+}
+
+.carousel .item.active {
+  display: block !important;
+}
+
+/* --------------------------------------------------------------------------
+   ROOM IMAGES / SLIDER
+   -------------------------------------------------------------------------- */
+.b24-prop-slider,
+.carousel {
+  border-radius: var(--b24-radius-md) var(--b24-radius-md) 0 0 !important;
+  overflow: hidden !important;
+}
+
+.b24-prop-slider img,
+.carousel img,
+.carousel .item img {
+  border-radius: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  object-fit: cover;
+}
+
+.carousel-control {
+  background: none !important;
+  background-image: none !important;
+  width: 40px !important;
+  opacity: 0.7 !important;
+  transition: opacity var(--b24-transition) !important;
+}
+
+.carousel-control:hover {
+  opacity: 1 !important;
+}
+
+/* --------------------------------------------------------------------------
+   CALENDAR
+   -------------------------------------------------------------------------- */
+.roomoffercalendarmonth {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  position: relative;
+  z-index: 1;
+}
+
+.monthcalendarhead {
+  font-family: var(--b24-font-heading) !important;
+  font-weight: var(--b24-font-weight-semibold) !important;
+  font-size: var(--b24-font-size-base) !important;
+  color: var(--b24-color-text) !important;
+}
+
+.roomoffercalendarmonth td {
+  border-radius: var(--b24-radius-sm) !important;
+  transition: background var(--b24-transition), color var(--b24-transition) !important;
+  padding: 3px !important;
+  text-align: center;
+}
+
+.datestay {
+  background-color: var(--b24-color-primary) !important;
+  color: #ffffff !important;
+  font-weight: var(--b24-font-weight-medium) !important;
+}
+
+.dateavail {
+  cursor: pointer;
+}
+
+.dateavail:hover {
+  background-color: rgba(231, 163, 92, 0.15) !important;
+}
+
+.datenotavail {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.datepast {
+  opacity: 0.4;
+}
+
+/* --------------------------------------------------------------------------
+   PRICE TABLE / OFFER SECTION
+   -------------------------------------------------------------------------- */
+.roomprice,
+[id^="roomprice-"] {
+  font-family: var(--b24-font-heading) !important;
+  font-size: var(--b24-font-size-lg) !important;
+  font-weight: var(--b24-font-weight-bold) !important;
+  color: var(--b24-color-text) !important;
+}
+
+select[id^="sr1-"] {
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-xs) var(--b24-space-sm) !important;
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  color: var(--b24-color-text) !important;
+  background: var(--b24-color-bg-white) !important;
+}
+
+select[id^="naa"] {
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-xs) var(--b24-space-sm) !important;
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  color: var(--b24-color-text) !important;
+  background: var(--b24-color-bg-white) !important;
+}
+
+.b24-multipricebox {
+  font-family: var(--b24-font-body) !important;
+}
+
+/* --------------------------------------------------------------------------
+   PROPERTY CONTENT AREAS
+   -------------------------------------------------------------------------- */
+.b24fullcontainer-proprow1,
+.b24fullcontainer-proprow2 {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  line-height: 1.7;
+  color: var(--b24-color-text) !important;
+}
+
+.propdesc,
+.b24-prop-description {
+  max-width: 72ch;
+}
+
+/* --------------------------------------------------------------------------
+   LANGUAGE & CURRENCY
+   -------------------------------------------------------------------------- */
+.b24languagedropdown .btn,
+.b24languagedropdown .btn.active,
+.b24languagedropdown .btn:active,
+.b24currencydropdown .btn,
+.b24currencydropdown .btn.active,
+.b24currencydropdown .btn:active {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  color: var(--b24-color-text-light) !important;
+  background: transparent !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-xs) var(--b24-space-sm) !important;
+}
+
+/* --------------------------------------------------------------------------
+   LINKS
+   -------------------------------------------------------------------------- */
+a {
+  color: var(--b24-color-secondary) !important;
+  text-decoration: none !important;
+  transition: color var(--b24-transition) !important;
+}
+
+a:hover {
+  color: var(--b24-color-secondary-hover) !important;
+}
+
+/* --------------------------------------------------------------------------
+   POLICY SECTIONS
+   -------------------------------------------------------------------------- */
+.b24-policy,
+.b24-cancelpolicy {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  color: var(--b24-color-text-light) !important;
+  line-height: 1.6;
+  padding: var(--b24-space-md) !important;
+  background: var(--b24-color-bg) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  border: 1px solid var(--b24-color-border) !important;
+}
+
+/* --------------------------------------------------------------------------
+   FOOTER
+   -------------------------------------------------------------------------- */
+.b24fullcontainer-footer {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  color: var(--b24-color-text-light) !important;
+}
+
+/* --------------------------------------------------------------------------
+   FORM ELEMENTS
+   -------------------------------------------------------------------------- */
+.form-control {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-sm) var(--b24-space-md) !important;
+  color: var(--b24-color-text) !important;
+  transition: border-color var(--b24-transition) !important;
+}
+
+.form-control:focus {
+  border-color: var(--b24-color-primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(231, 163, 92, 0.15) !important;
+}
+
+/* --------------------------------------------------------------------------
+   HIDE/REVEAL STATE (JS-controlled)
+   -------------------------------------------------------------------------- */
+body.b24-rooms-hidden .b24fullcontainer-rooms .b24room {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  transition: opacity 0.4s ease, max-height 0.4s ease;
+}
+
+body.b24-rooms-revealed .b24fullcontainer-rooms .b24room {
+  opacity: 1;
+  max-height: 9999px;
+  transition: opacity 0.4s ease;
+}
+
+.b24-select-dates-msg {
+  font-family: var(--b24-font-body);
+  font-size: var(--b24-font-size-lg);
+  color: var(--b24-color-text-light);
+  text-align: center;
+  padding: var(--b24-space-2xl) var(--b24-space-lg);
+}
+
+/* --------------------------------------------------------------------------
+   PRICE INJECTION (JS)
+   -------------------------------------------------------------------------- */
+.b24-from-price {
+  font-family: var(--b24-font-heading);
+  font-size: var(--b24-font-size-lg);
+  font-weight: var(--b24-font-weight-bold);
+  color: var(--b24-color-primary);
+  display: inline-block;
+  margin-left: var(--b24-space-md);
+  vertical-align: middle;
+}
+
+.b24-from-price-label {
+  font-family: var(--b24-font-body);
+  font-size: var(--b24-font-size-sm);
+  font-weight: var(--b24-font-weight-normal);
+  color: var(--b24-color-text-light);
+  margin-right: var(--b24-space-xs);
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .b24panel-room > .b24panel {
+    padding: var(--b24-space-md) !important;
+  }
+
+  .b24-roompanel-heading {
+    padding: var(--b24-space-sm) var(--b24-space-md) !important;
+  }
+
+  .at_roomnametext {
+    font-size: 18px !important;
+  }
+
+  .b24-bookingstrip {
+    padding: var(--b24-space-sm) 0 !important;
+  }
+
+  body {
+    overflow-x: hidden !important;
+  }
+
+  .at_bookingbut {
+    width: 100% !important;
+    padding: 12px var(--b24-space-lg) !important;
+    margin-top: var(--b24-space-sm) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  :root {
+    --b24-font-size-base: 13px;
+    --b24-font-size-xl: 18px;
+    --b24-space-lg: 16px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   MISC
+   -------------------------------------------------------------------------- */
+.border {
+  border: 1px solid var(--b24-color-border) !important;
+}
+
+#multiroom {
+  accent-color: var(--b24-color-primary);
+}

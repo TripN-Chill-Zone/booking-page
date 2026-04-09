@@ -1,0 +1,19 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&family=Lexend+Giga:wght@400;500;600;700&display=swap');
+body { font-family: 'Lexend', sans-serif !important; color: #2D482D !important; background: #F7FAFC !important; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4, h5, h6 { font-family: 'Lexend Giga', sans-serif !important; color: #2D482D !important; }
+.bookingpage, .container, .confirmationpage { background: #ffffff !important; border: 1px solid #EDF2F7 !important; border-radius: 10px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; padding: 32px !important; max-width: 720px; margin: 32px auto !important; }
+.bookingreference, .bookingref, [class*="bookingref"], [class*="bookingnumber"] { font-family: 'Lexend Giga', sans-serif !important; font-size: 24px !important; font-weight: 700 !important; color: #E7A35C !important; display: block; margin: 16px 0; padding: 16px 24px; background: #F7FAFC; border: 2px solid #E7A35C; border-radius: 10px; text-align: center; }
+h1, .confirmation-title { font-size: 28px !important; text-align: center; margin-bottom: 8px !important; }
+table { width: 100% !important; border-collapse: collapse; font-family: 'Lexend', sans-serif !important; font-size: 14px !important; }
+table td, table th { padding: 10px 16px !important; border-bottom: 1px solid #EDF2F7 !important; color: #2D482D !important; }
+table th { font-weight: 600 !important; background: #F7FAFC !important; }
+.total, .grandtotal, [class*="total"] { font-family: 'Lexend Giga', sans-serif !important; font-weight: 700 !important; font-size: 18px !important; }
+.btn, button, input[type="submit"] { font-family: 'Lexend Giga', sans-serif !important; font-weight: 600 !important; background: #E7A35C !important; color: #ffffff !important; border: none !important; border-radius: 6px !important; padding: 10px 24px !important; cursor: pointer; transition: background 0.2s ease !important; }
+.btn:hover, button:hover { background: #d4923e !important; }
+a { color: #6DA17D !important; text-decoration: none !important; }
+a:hover { color: #5c8e6c !important; }
+.form-control, input, select, textarea { font-family: 'Lexend', sans-serif !important; border: 1px solid #EDF2F7 !important; border-radius: 6px !important; padding: 8px 16px !important; color: #2D482D !important; }
+.form-control:focus, input:focus, select:focus { border-color: #E7A35C !important; outline: none !important; box-shadow: 0 0 0 3px rgba(231,163,92,0.15) !important; }
+@media (max-width: 767px) { .bookingpage, .container, .confirmationpage { padding: 20px !important; margin: 16px !important; border-radius: 8px !important; } .bookingreference, .bookingref, [class*="bookingref"] { font-size: 20px !important; padding: 12px 16px; } }
+</style>
