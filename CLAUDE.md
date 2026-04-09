@@ -3,8 +3,9 @@
 ## Reference Documents
 - Execution plan: docs/beds24-execution.md
 - Architecture decisions: docs/beds24-execution-context.md
-- Beds24 admin field map: docs/beds24-admin-field-map.md
-- Session 5 handoff: session-handoff-5.md
+- Session 5 handoff: docs/session-handoff-5.md
+- Skill: docs/skill/SKILL.md (+ references/ subfolder)
+- Beds24 template variables: docs/beds24-template-variables.md (for confirmation page work — Phase 3 step 6 and Phase 4)
 
 ## Current Status
 - Phase 0.3 (Claude in Chrome content extraction) — PASSED
