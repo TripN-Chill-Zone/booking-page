@@ -24,9 +24,11 @@
 |---|---|
 | CSS/JS authoring | Claude (chat or Claude Code CLI) |
 | Content sourcing (read from existing WP sites) | Claude in Chrome |
-| Beds24 admin configuration and content entry | Manual |
+| Beds24 admin configuration (most fields) | Claude in Chrome |
+| Beds24 admin `<script>`/`<style>` fields | Manual paste by user (Beds24 strips tags on programmatic save) |
 | Photo uploads | Manual |
 | Mobile QA | Manual (real iOS device) |
+| VPS file upload | User via aaPanel file manager |
 
 ---
 
@@ -141,8 +143,9 @@ All steps on staging URL. Do not work on production.
 ### 2a. Layout and Template
 - [ ] Layout set to 6
 - [ ] Template set to 6
-- [ ] Multiple Booking confirmed enabled
-- [ ] Module arrangement: Picture Slider + Description at Property level; Offer Select + Price Table at Offer level; Picture Slider + Description at Room level
+- [ ] Multiple Room Booking set to "Enabled" (`bookpageallowmulti` = 1)
+- [ ] Room Features module (106) added to Room Bottom section (must be done manually in Beds24 admin UI)
+- [ ] Module arrangement: Property Calendar at Property level; Offer Select + Price Table at Offer level; Features + Picture Slider + Description at Room level
 
 ### 2b. Style Panel
 - [ ] Body Background
@@ -154,15 +157,14 @@ All steps on staging URL. Do not work on production.
 - [ ] Font Size
 
 ### 2c. Google Fonts (if UI font insufficient)
-- [ ] Font `<link>` tag added to HEAD injection
-- [ ] `.colorbody { font-family: '...'; }` added to Custom CSS
+- [ ] Font `<link>` tag added to `customheadtop` field
+- [ ] Font override in `bookingcss` field (`.colorbody` + heading selectors)
 
 ### 2d. Content Entry
 - [ ] Property Description 1
 - [ ] Room descriptions (per room)
-- [ ] Room features (per room)
+- [ ] Room features — entered per room in PROPERTIES > ROOMS > SET UP, or property-level in PROPERTIES > DESCRIPTION
 - [ ] General Policy and Cancellation Policy
-- [ ] Static "Rates from $X" text (if Phase 0.2 determined JS not viable and client opted in)
 - [ ] Photos — manual upload, assigned to correct property/room/offer
 
 ### Phase 2 Verification
@@ -190,56 +192,104 @@ All steps on staging URL. Do not work on production.
 
 ### CSS Architecture
 
-**Base + Theme:**
-- External file (`&cssfile=`): structural rules only — layout, spacing, resets, card/booking strip geometry. Zero aesthetics.
-- All aesthetics via CSS variables defined in external file
-- Per-property theming: small variable override block in each property's Beds24 Custom CSS field (e.g., `:root { --brand-color: #ff0000; --brand-font: 'Open Sans'; }`)
+**External file (served via `&cssfile=` URL parameter):**
+- Contains ALL structural rules, aesthetics, layout, responsive design
+- No character limit
+- Versioned filenames: `CSS-base-v1.css`, `CSS-base-v2.css`, etc.
+- Hosted on VPS via aaPanel, served through Cloudflare (use versioned filenames to bust cache)
+- Current hosting: `https://astrongpresence.com/CSS-base-v{N}.css`
 
-**Critical CSS (FOUC prevention):**
-- Booking strip, page header, and room card basic geometry replicated inline in Beds24 Custom CSS field
-- Limited to layout-shift-preventing properties only: `display`, `grid`/`flex` structure, `width`, `height`, `aspect-ratio`, `min-height`. No colors, borders, typography, shadows.
-- Maintained as `critical-css-payload.css` in git — sole source of truth for inline fields
-- Deployment: paste entire contents of `critical-css-payload.css` into each property's Custom CSS field, then append per-property variable overrides
+**Inline `bookingcss` field (Custom CSS in Beds24 admin):**
+- Critical CSS payload (FOUC prevention) + per-property variable overrides ONLY
+- HARD LIMIT: ~18-19K characters (saves silently fail above this — discovered in Session 5)
+- Keep under 2K characters
+- Template in `docs/skill/references/css-architecture.md`
 
-**Version control:**
-- External CSS in git, versioned filename (e.g., `beds24-base-v1.css`)
-- Rollback: update `&cssfile=` reference — all 4 properties update simultaneously
+**Inline `custombody` field:**
+- Hide/reveal JS + price injection JS, wrapped in `<script>` tags
+- MUST be pasted manually by user — Beds24 strips `<script>` tags on programmatic save via Claude in Chrome
+
+**Inline `customheadconfirm` field:**
+- Confirmation page styles, wrapped in `<style>` tags
+- MUST be pasted manually — same tag stripping issue
+
+**Rollback:** Update `&cssfile=` version reference. Inline fields contain only variables + critical CSS payload — trivial to re-enter.
 
 ### CSS Update Protocol
 
-1. New versioned filename in git (e.g., `beds24-base-v2.css`)
-2. If above-the-fold structure changed, update `critical-css-payload.css` in git
-3. Paste `critical-css-payload.css` + variable overrides into one property's Custom CSS field
-4. Point that property's staging at new external file
-5. Visually verify: booking strip, room cards, confirmation page, all viewport widths
-6. Repeat steps 3–5 for all four properties on staging
-7. Verify all four staging environments
-8. Only then: update production `&cssfile=` references and inline fields simultaneously
+1. New versioned filename (e.g., `CSS-base-v3.css`)
+2. Upload to VPS via aaPanel
+3. Update booking page URL to reference new filename
+4. Hard refresh to verify (Ctrl+Shift+R) — Cloudflare caches aggressively
+5. If critical CSS structure changed, update `bookingcss` inline field too
+6. For multi-property rollout: verify all properties on staging before production
 
 Pre-existing failures unrelated to the CSS change do not block the push.
 
+### Design Direction — Hostelworld Model
+
+The booking page should feel like Hostelworld's room listing. This was agreed in Session 5 based on analysis of the live Hostelworld page for the Chill Zone property.
+
+**Booking strip:** Check In + Check Out only. No nights selector, no global guest count, no search button (dates auto-search). Strip should be sticky at top of page.
+
+**Room card layout:**
+```
+┌────────────────────────────────────────────┐
+│ Room Name                                  │
+├──────────────┬─────────────────────────────┤
+│              │ Description text             │
+│  Photo       │ Features / amenities         │
+│  (40%)       │                              │
+├──────────────┴─────────────────────────────┤
+│ Date Strip (availability calendar)          │
+├─────────────────────────────────────────────┤
+│ [Quantity ▼]  from €XX   [Book Now →]      │
+└─────────────────────────────────────────────┘
+```
+
+Mobile: stacks vertically.
+
 ### Work Order
 
-1. **Booking strip** — date pickers, guest selectors, search button
-2. **Room cards** — border-radius, box-shadow, image corners, typography, quantity selectors
-3. **Hide rooms until dates selected** — JS hide/reveal (only when page loads without date parameters)
-4. **Property-level layout** — header, description block, spacing
-5. **Confirmation page** — styles via Confirmation HEAD field
-6. **"From price" JS injection** — if Phase 0.2 confirmed feasible; otherwise skip
+1. **Room card layout** — Hostelworld-style: photo left + description right, date strip below, qty + price + Book button at bottom
+2. **Booking strip** — Check In + Check Out only, sticky positioning
+3. **Sticky bottom Book bar** — visible as guest scrolls
+4. **Hide/reveal rooms** — JS: hide rooms before dates selected, show after (MutationObserver on `.b24fullcontainer-rooms`)
+5. **Dorm booking mechanism** — JS: inject visible Book button for dorm rooms (hidden input problem)
+6. **Confirmation page** — styles via `customheadconfirm` field
+7. **"From price" JS injection** — if Phase 0.2 confirmed feasible; otherwise skip
 
 ### JS Specifications
 
 **Hide/reveal — detection mechanism:**
-- Primary: `MutationObserver` on room card container (e.g., `#b24scroller`) watching for child nodes. Triggers reveal when room nodes appear, then disconnects.
+- Primary: `MutationObserver` on `.b24fullcontainer-rooms` (the room container) watching for `.b24room` child nodes. Triggers reveal when room nodes appear, then disconnects.
+- IMPORTANT: `#b24scroller` is the booking STRIP, NOT the room container. Use `.b24fullcontainer-rooms` for room detection.
 - Only activates when `checkin` parameters present in URL.
-- Without date parameters: JS waits for date selection event indefinitely.
-- Backstop: 10-second timeout force-shows rooms if observer detects nothing (last resort for DOM structure changes).
+- Without date parameters: JS hides rooms and shows "Select your dates" message. Waits for page reload with parameters.
+- Backstop: 10-second timeout force-shows rooms if observer detects nothing.
+
+**Dorm booking JS:**
+- Dorm rooms (configured for channel manager compatibility) render `input[type="hidden"][name="sr1-{roomId}"][value="1"]` instead of a quantity dropdown
+- This cannot be changed without affecting Hostelworld/Booking.com integrations
+- JS must detect dorm rooms (hidden sr1 input) and inject a visible "Book" button
+- The hidden input already sets quantity to 1 — the JS just needs to trigger form submission or make the booking mechanism visible
 
 **Price injection — failure behavior:**
 - Must fail silently to no-display. If DOM node absent, content unexpected, or any error: remove/hide injected element entirely.
 - Hard requirement at authoring time.
 
-**CSS targets:** `#b24scroller`, `.b24room`, `.panel-heading`, `.b24-prop-slider`, etc. Inspect rendered HTML on staging before writing.
+**Verified CSS targets (Session 5 DOM inspection):**
+- Room container: `.b24fullcontainer-rooms`
+- Room cards: `.b24room`
+- Room panel: `.b24panel-room`
+- Room heading: `.b24-roompanel-heading` > `.at_roomnametext`
+- Booking strip: `.b24-bookingstrip` / `#b24scroller`
+- Photo slider: `.b24-room-slider` > `[id^="collapseslider"]` > `.carousel`
+- Description: `.b24-room-desc` > `[id^="collapsedesc"]`
+- Date strip: `.b24-offer-pricetable`
+- Qty selector: `.b24-offer-select` > `select[id^="sr1-"]`
+- Book button: `.multiplebookbutton .at_bookingbut`
+- Full selector reference: `docs/skill/references/dom-structure.md`
 
 ### Confirmation Page Verification
 - [ ] Brand colors and font present — visually continuous with booking flow
@@ -252,12 +302,14 @@ Unstyled confirmation page = core verification failure.
 ### Phase 3 Verification
 
 **Core:**
-- [ ] Booking strip styled and functional
-- [ ] Room cards visible and styled after date selection
-- [ ] Room cards hidden before date selection
+- [ ] Booking strip: Check In + Check Out only, sticky at top
+- [ ] Room cards: photo + description side by side, date strip below, qty + Book at bottom
+- [ ] Rooms hidden before date selection, visible after
 - [ ] Pre-populated date parameters → rooms display immediately
+- [ ] All rooms bookable (including dorms — verify dorm booking mechanism)
 - [ ] Complete booking can be initiated: dates → room selection → checkout
 - [ ] No CSS rule breaks booking flow
+- [ ] Bottom Book bar sticky and visible when rooms selected
 
 **Dependent:**
 - [ ] CSS variables apply correctly per property
@@ -266,7 +318,7 @@ Unstyled confirmation page = core verification failure.
 - [ ] Confirmation page styled
 - [ ] "From price" labels correct (if implemented)
 - [ ] No layout breakage at 375px, 390px, 430px viewports
-- [ ] External CSS versioned and committed to git
+- [ ] External CSS versioned and on VPS
 
 **Any core failure must be resolved before Phase 4.**
 
@@ -313,8 +365,9 @@ External CSS file already shared. Per property:
 1. Repeat Phase 1 (content extraction)
 2. Repeat Phase 2 (admin configuration and content entry)
 3. Add property-specific CSS variable block to Custom CSS field
-4. Configure WordPress widget with correct `propid`
-5. Spot-check on staging
+4. Paste JS and confirmation styles manually into respective fields
+5. Configure WordPress widget with correct `propid` and `cssfile` parameter
+6. Spot-check on staging
 
 ### Verification (Per Property)
 
@@ -323,6 +376,7 @@ External CSS file already shared. Per property:
 - [ ] CSS variable overrides apply — brand colors and fonts match
 - [ ] Full flow end-to-end on staging (WordPress widget → Beds24 → checkout)
 - [ ] No layout breakage from property-specific content differences
+- [ ] Dorm rooms bookable (if property has dorms)
 
 **Dependent:**
 - [ ] Room descriptions and features under correct rooms
@@ -369,8 +423,12 @@ On a real iOS device, staging URL:
 | Booking page on Beds24 domain | Guest leaves property site on "Search" | Accepted — end of client journey |
 | Hide/reveal JS silent failure | Rooms could be permanently hidden if Beds24 changes DOM | `MutationObserver` + 10s backstop timeout; observer only when `checkin` params present |
 | Price display before quantity selection | Price only after selection | Phase 0.2 JS test; silent fail to no-display; static text fallback |
-| CSS rollback desync risk | Rollback could break layouts | Eliminated — inline fields contain only variables; `critical-css-payload.css` is sole source |
+| CSS rollback desync risk | Rollback could break layouts | Eliminated — inline fields contain only variables + critical CSS |
 | CSS push affects all 4 properties | Bad push = multi-site issue | Versioned filenames + git |
 | Beds24 frontend updates without warning | All 4 properties break simultaneously | JS safeguards + monthly spot-checks |
 | Deep linking to rooms | Marketing links use `roomid` parameter | Same styled page — no tradeoff |
 | Date handoff is one-way | Dates changed on Beds24 don't carry back to WordPress | Accepted — Beds24 page is end of journey |
+| `bookingcss` field ~18-19K char limit | Saves silently fail above limit | All real CSS in external file; inline field for critical CSS + variables only |
+| `custombody`/`customheadconfirm` tag stripping | `<script>`/`<style>` tags stripped on programmatic save | Manual paste required |
+| Dorm rooms have hidden quantity input | No visible booking control for dorms | JS injection needed per property with dorms |
+| Cloudflare caches external CSS | Stale CSS after updates | Versioned filenames bust cache |

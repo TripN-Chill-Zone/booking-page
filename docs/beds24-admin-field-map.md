@@ -84,6 +84,8 @@ Modules available: Room Picture, Room Features, Room Description Text
 | 8 | Room Order | `bookpageunavailablerooms` | Unavailable at Bottom | Sell Priority, Unavailable at Bottom, Cheapest First, Expensive First, Hide Unavailable |
 | 9 | Page Type | `allowbooking` | Allow Enquiry and Booking | Allow Enquiry Only, Allow Enquiry and Booking |
 | 10 | Multiple Room Booking | `bookpageallowmulti` | Guest Can Choose | Disabled, Enabled, Guest Can Choose |
+
+**Session 5 change:** `bookpageallowmulti` changed from "Guest Can Choose" (2) to **"Enabled" (1)**. This removes the global guest count from the booking strip, adds per-room quantity dropdowns, and makes `.multiplebookbutton` always visible. Dorm rooms render a hidden input instead of a dropdown (channel manager constraint).
 | 11 | Show Extra Marketing Column | `bookpageextracol` | No | No, Yes |
 | 12 | Booking Page Price Multiplier | `bookpagemultiplier` | (empty) | Free-form text |
 
@@ -155,27 +157,27 @@ Collapse state: hidden inputs `colapsestate13` through `colapsestate24`.
 
 | Label | `id` | Type | Current Value |
 |---|---|---|---|
-| Custom CSS | `bookingcss` | Textarea | (empty) |
-| Meta Description Text | `descriptionmeta` | Text input | (test — remove before prod) |
-| Insert in HTML `<HEAD>` top | `customheadtop` | Textarea | (test — remove before prod) |
+| Custom CSS | `bookingcss` | Textarea | Critical CSS payload + Chill Zone variable overrides (1,545 chars). HARD LIMIT: ~18-19K chars — saves silently fail above this. |
+| Meta Description Text | `descriptionmeta` | Text input | (empty) |
+| Insert in HTML `<HEAD>` top | `customheadtop` | Textarea | Google Fonts `<link>` for Lexend + Lexend Giga (285 chars) |
 | Insert in HTML `<HEAD>` bottom | `customhead` | Textarea | (empty) |
 | Insert in HTML `<BODY>` top | `custombodytop` | Textarea | (empty) |
-| Insert in HTML `<BODY>` bottom | `custombody` | Textarea | (test — remove before prod) |
-| Confirmation Page `<HEAD>` | `customheadconfirm` | Textarea | (empty) |
+| Insert in HTML `<BODY>` bottom | `custombody` | Textarea | Hide/reveal JS + price injection JS (~4,500 chars). NOTE: `<script>` tags stripped on programmatic save — must paste manually. |
+| Confirmation Page `<HEAD>` | `customheadconfirm` | Textarea | Confirmation page styles (~2,800 chars). NOTE: `<style>` tags stripped on programmatic save — must paste manually. |
 | Google Map API Key | `mapkey` | Text input | (empty) |
 
 ### Project Usage
 
-| Field ID | Purpose |
-|---|---|
-| `bookingcss` | Per-property CSS variable overrides + critical CSS payload |
-| `customheadtop` | Google Fonts `<link>` tag |
-| `customhead` | Available for additional `<link>` tags |
-| `custombodytop` | (unused) |
-| `custombody` | Hide/reveal JS, price injection JS |
-| `customheadconfirm` | Confirmation page styles |
-| `descriptionmeta` | SEO meta description |
-| `mapkey` | Not needed |
+| Field ID | Purpose | Notes |
+|---|---|---|
+| `bookingcss` | Critical CSS payload (FOUC prevention) + per-property CSS variable overrides | Keep under 2K chars. All real CSS in external file via `&cssfile=` parameter. HARD LIMIT ~18-19K. |
+| `customheadtop` | Google Fonts `<link>` tag | Set once per property, don't touch after |
+| `customhead` | Available for additional `<link>` tags | (unused) |
+| `custombodytop` | (unused) | |
+| `custombody` | Hide/reveal JS, price injection JS | MUST paste manually — Beds24 strips `<script>` tags on programmatic save |
+| `customheadconfirm` | Confirmation page styles | MUST paste manually — Beds24 strips `<style>` tags on programmatic save |
+| `descriptionmeta` | SEO meta description | |
+| `mapkey` | Not needed | |
 
 ---
 

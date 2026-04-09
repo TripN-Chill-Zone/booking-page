@@ -458,9 +458,34 @@ session-handoff-4.md               ← previous session handoff
 
 ## Documents for Next Session
 
+Upload these 7 files at the start of the conversation:
+
 1. `CLAUDE.md` — project conventions, property/room IDs, tool usage
-2. `docs/beds24-execution.md` — execution plan (source of truth)
-3. `docs/beds24-execution-context.md` — architecture decisions
-4. `docs/beds24-admin-field-map.md` — admin field IDs
-5. This document (`session-handoff-5.md`)
-6. The current external CSS file (`CSS-base-v2.css` — download from `https://astrongpresence.com/CSS-base-v2.css` or from `docs/claude-custom/`)
+2. `docs/session-handoff-5.md` — this document
+3. `docs/beds24-execution.md` — execution plan (source of truth, updated Session 5)
+4. `docs/skill/SKILL.md` — beds24-booking-page skill (setup checklist, design spec, architecture)
+5. `docs/skill/references/dom-structure.md` — complete DOM tree with verified selectors
+6. `docs/skill/references/gotchas.md` — every known pitfall with solutions
+7. `docs/skill/references/admin-guide.md` — Beds24 admin page types, field IDs, module reference
+
+Optional (upload on demand):
+- `docs/beds24-admin-field-map.md` — full field-by-field detail (updated Session 5)
+- `docs/beds24-execution-context.md` — architecture decisions and rationale
+- `docs/skill/references/css-architecture.md` — CSS variable system and file architecture detail
+
+The external CSS file (`CSS-base-v2.css`) is live at `https://astrongpresence.com/CSS-base-v2.css` and also saved in the repo at `docs/CSS-base-v2.css`.
+
+---
+
+## Notes for Next Session
+
+The immediate priority is fixing the remaining layout issues in CSS-base-v3.css:
+
+1. **Sticky booking strip** — add `position: sticky; top: 0; z-index: 100` to `.b24fullcontainer-selector`
+2. **Sticky bottom Book bar** — the `.multiplebookbutton` parent needs `position: fixed; bottom: 0`
+3. **Photo LEFT, description RIGHT** — currently features module sits next to photo instead of description. The description is in a separate `.row` element from the slider, making pure CSS reorder difficult. May need to either move the description module into the same row as the slider via the Layout page config, or use JS to rearrange DOM elements.
+4. **Per-room Book button next to quantity** — the `.multiplebookbutton` is inside `.b24-offer-select` which is inside the offer row. It should be visible and inline with the quantity selector at the bottom of each card.
+5. **Dorm booking mechanism** — needs JS in `custombody` to inject a visible Book button. The hidden input `sr1-567219=1` already selects 1 bed — the JS just needs to make this actionable for the guest.
+6. **Booking strip width overflow** — the strip extends wider than room cards on desktop
+
+Start by reading the skill's `dom-structure.md` to have the selector map fresh, then edit `CSS-base-v2.css` → save as `CSS-base-v3.css` → upload to aaPanel → test with the new filename in the URL.
