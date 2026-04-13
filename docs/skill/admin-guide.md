@@ -26,9 +26,9 @@ https://beds24.com/control3.php?pagetype={pagetype}&id={propertyOrRoomId}
 |---|---|---|---|
 | `bookingcss` | Custom CSS | ~18-19K chars (silent fail above) | No |
 | `customheadtop` | HTML `<HEAD>` top injection | Unknown | No |
-| `customhead` | HTML `<HEAD>` bottom injection | Unknown | No |
+| `customhead` | HTML `<HEAD>` bottom injection | Unknown | No — `<script>` and `<style>` tags preserved |
 | `custombodytop` | HTML `<BODY>` top injection | Unknown | Yes (`<script>` stripped on programmatic save) |
-| `custombody` | HTML `<BODY>` bottom injection | Unknown | Yes (`<script>` stripped on programmatic save) |
+| `custombody` | HTML `<BODY>` bottom injection | ~2,000 chars | Yes (`<script>` stripped on programmatic save) |
 | `customheadconfirm` | Confirmation page `<HEAD>` | Unknown | Yes (`<style>` stripped on programmatic save) |
 | `descriptionmeta` | SEO meta description | Unknown | No |
 | `mapkey` | Google Map API Key | Unknown | No |

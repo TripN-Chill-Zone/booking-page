@@ -141,6 +141,8 @@ div.b24room#roomid{roomId}
 | Book button container | `.multiplebookbutton` |
 | Book button | `.multiplebookbutton .at_bookingbut` |
 
+**IMPORTANT:** In multi-room booking mode (`bookpageallowmulti = 1`), `.multiplebookbutton` elements exist ONLY in the booking strip area (2 instances), NOT inside individual room cards. Per-room Book buttons must be injected via JS.
+
 ### Photo Slider
 | Target | Selector |
 |---|---|

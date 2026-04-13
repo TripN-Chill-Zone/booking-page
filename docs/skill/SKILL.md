@@ -20,45 +20,125 @@ Before doing any work, read the appropriate reference file:
 
 ## Architecture Overview
 
-The booking page is hosted on the Beds24 domain (`beds24.com/booking2.php`), styled via CSS/JS injection, and linked from the WordPress property site. It is NOT embedded in an iframe.
+The booking page uses a two-part system: a custom JavaScript widget on the WordPress property site handles date/guest selection and displays rooms in an iframe. When the guest clicks Book, the Beds24 checkout page takes over the full browser tab. The guest completes booking on native Beds24, and the back button returns to the WordPress page.
 
-### CSS Architecture
+**The Beds24 WordPress plugin's iframe embed was rejected** due to iOS double-scroll issues and lack of control over the booking flow. Our custom widget replaces it entirely.
+
+### File Architecture
 
 ```
-External CSS file (served via &cssfile= URL parameter):
-  https://{domain}/CSS-base-v{N}.css
-  Contains: all structural rules, aesthetics, layout, responsive design
-  No character limit — this is where all real CSS lives
+WordPress side:
+  Custom HTML block on "Book A Room" page:
+    <div id="tnh-booking-root"></div>
+    <script src="https://{domain}/booking-widget-v{N}.js"></script>
+  
+  The widget JS is self-contained — injects CSS, HTML, and all logic.
+  Hosted on VPS, versioned filenames for cache busting.
 
-Inline bookingcss field (Beds24 admin > Developer > Custom CSS):
-  Contains: critical CSS payload (FOUC prevention) + per-property variable overrides
-  HARD LIMIT: ~18-19K characters (saves silently fail above this)
-  Keep this as small as possible — ideally under 2K
+Beds24 side:
+  customhead field (Insert in HTML <HEAD> bottom):
+    <script src="https://{domain}/beds24-iframe-helper-v{N}.js"></script>
+    NOTE: customhead does NOT strip <script> tags (unlike custombody)
+    This is the preferred injection point for external JS.
 
-Inline custombody field (Beds24 admin > Developer > Insert in HTML <BODY> bottom):
-  Contains: <script> tags with hide/reveal JS + price injection JS
-  IMPORTANT: must be pasted manually — Beds24 strips <script> tags on programmatic save
+  customheadtop field (Insert in HTML <HEAD> top):
+    Google Fonts <link> tag — set once per property
 
-Inline customheadconfirm field (Beds24 admin > Developer > Confirmation Page <HEAD>):
-  Contains: <style> tags with confirmation page styles
-  IMPORTANT: must be pasted manually — same tag stripping issue
+  bookingcss field (Custom CSS):
+    Critical CSS payload (FOUC prevention) + per-property variable overrides
+    HARD LIMIT: ~18-19K characters (saves silently fail above)
+    Keep under 2K — all real CSS goes in external file
 
-Inline customheadtop field (Beds24 admin > Developer > Insert in HTML <HEAD> top):
-  Contains: Google Fonts <link> tag
-  Set once per property, don't touch after
+  custombody field (Insert in HTML <BODY> bottom):
+    Hide/reveal JS from earlier sessions
+    LIMIT: ~2,000 characters
+    IMPORTANT: strips <script> tags on programmatic save — must paste manually
+    NOTE: with the iframe helper in customhead, custombody may become redundant
+
+  External CSS file (served via &cssfile= URL parameter):
+    https://{domain}/CSS-base-v{N}.css
+    Contains: all structural rules, aesthetics, layout, responsive design
+    No character limit
 ```
+
+### Guest Flow
+
+```
+WordPress "Book A Room" page
+  → Guest enters dates + guests in widget
+  → Clicks "Search Rooms"
+  → Beds24 booking page loads in iframe below widget
+    (booking strip, headers, footer hidden by helper script)
+  → Guest sees room cards with photos, descriptions, prices
+  → Guest selects quantity and clicks per-room "Book" button
+  → form.target="_top" breaks out of iframe
+  → Beds24 checkout takes over full browser tab
+  → Guest completes booking on native Beds24
+  → Back button returns to WordPress "Book A Room" page
+```
+
+### Widget Configuration (Per-Property)
+
+The booking widget has a CONFIG block at the top:
+
+```javascript
+var CONFIG = {
+  ownerid: '141266',
+  propid:  '271142',
+  cssfile: 'https://astrongpresence.com/CSS-base-v2.css',
+  minNights: 2,
+  maxNights: 90,
+  defaultNights: 2,
+  primaryColor: '#E7A35C',
+  secondaryColor: '#6DA17D',
+  // ... brand colors and fonts
+};
+```
+
+For rollout, create per-property widget files with updated CONFIG values.
+
+### Iframe Helper Behavior
+
+The helper script (`beds24-iframe-helper-v{N}.js`) loaded via `customhead` does different things depending on context:
+
+**When embedded via widget** (`referer=widget` in URL AND inside iframe):
+- Hides booking strip, property headers/footers, bottom summary bar
+- Reports page height to parent via `postMessage` for iframe sizing
+- Sets `form.target = '_top'` so checkout breaks out of iframe
+
+**Always** (whether embedded or direct visit):
+- Injects per-room Book buttons (Beds24 multi-room mode has NONE per-room)
+- Fixes dorm room booking (unhides guest selector, relabels "Guests" → "Beds")
+
+### Height Sync Between WordPress and Beds24
+
+The iframe has `scrolling="no"`. The helper script reports the Beds24 page's `scrollHeight` to the parent via `postMessage`. The widget JS receives these messages and sets the iframe height accordingly.
+
+**Key rules for height measurement:**
+- Use `document.documentElement.scrollHeight` — it works reliably
+- Do NOT set `body.style.height` to trim the page — risks clipping content and creates self-referencing loops
+- `display:none` elements contribute 0 to `scrollHeight` — hiding elements is sufficient
+- The widget shows a loading spinner until reported height exceeds 500px (rooms rendered)
+- 8-second fallback shows iframe at 2400px if no height message arrives
 
 ### CSS Update Protocol
 
 1. Create new file with incremented version: `CSS-base-v{N+1}.css`
 2. Upload to VPS via aaPanel file manager
-3. Update booking page URL to reference new filename (Cloudflare caches — versioned names bust cache)
+3. Update booking page URL to reference new filename (Cloudflare/LiteSpeed cache — versioned names bust cache)
 4. Hard refresh to verify
 5. If critical CSS structure changed, update `bookingcss` inline field too
 
-### Guest Flow
+### JS Update Protocol
 
-WordPress property page → guest enters dates in booking widget → clicks "Search" → Beds24 booking page opens with `checkin`, `numnight`, `numadult` URL parameters → guest sees rooms, selects quantity, completes booking.
+1. Create new file with incremented version (e.g., `beds24-iframe-helper-v{N+1}.js`)
+2. Upload to VPS via aaPanel file manager
+3. **Verify file is accessible** — navigate to URL, confirm 200 response and correct content
+4. Update the corresponding Beds24 field (`customhead`) or WordPress HTML block
+5. Hard refresh to verify
+6. If 404: file not uploaded, or cached 404 — use new version number or purge cache
+
+**CRITICAL: Always verify file accessibility (step 3) before debugging anything else.**
 
 ---
 
@@ -140,19 +220,28 @@ For each new property:
 - [ ] Verify booking page loads with `&cssfile=` parameter
 
 ### 4. JS Deployment
-- [ ] Paste hide/reveal JS into `custombody` field (MANUAL — tags get stripped programmatically)
-- [ ] Paste confirmation styles into `customheadconfirm` field (MANUAL — same issue)
+- [ ] Upload booking widget JS to VPS: `booking-widget-v{N}.js` (copy from Chill Zone, update CONFIG)
+- [ ] Upload Beds24 iframe helper JS to VPS: `beds24-iframe-helper-v{N}.js`
+- [ ] **Verify both files accessible** — navigate to URLs, confirm 200 response
+- [ ] Add iframe helper `<script>` tag to `customhead` field (does NOT strip tags)
+- [ ] WordPress: add Custom HTML block with `<div id="tnh-booking-root"></div>` + `<script src>` tag
+- [ ] Existing `custombody` content: keep hide/reveal JS from earlier setup (paste manually if needed)
 
 ### 5. Verify
-- [ ] Booking strip: Check In + Check Out only, no extra controls
+- [ ] Widget renders on WordPress page: date picker, guest selector, Search button
+- [ ] Search loads rooms in iframe below widget
 - [ ] Room cards: photos visible, descriptions visible, features showing
 - [ ] Date strip per room: showing availability
-- [ ] Quantity selector + price + Book button at bottom of each card
+- [ ] Per-room Book button visible on each room card (injected by helper JS)
+- [ ] Dorm rooms: guest selector visible, relabeled "Beds", right-aligned
+- [ ] Clicking Book breaks out of iframe to full-page Beds24 checkout
+- [ ] Back button returns to WordPress page
 - [ ] Duplicate calendars hidden
 - [ ] Fakelinks hidden
 - [ ] Per-occupancy prices hidden (only "from €XX" shows)
-- [ ] Confirmation page styled
+- [ ] No excess whitespace below rooms
 - [ ] Mobile layout stacks properly
+- [ ] No iOS double-scroll issue
 
 ### Per-Property CSS Variable Block
 
@@ -187,9 +276,18 @@ Dorm rooms configured for channel manager compatibility (Hostelworld, Booking.co
 - **Quantity selector**: renders as `input[type="hidden"]` auto-set to 1, NOT a `<select>` dropdown
 - **Guest selector**: only "0 Guests" / "1 Guest" — hidden by CSS but the hidden input handles selection
 - **No visible booking mechanism**: the guest sees the price and date strip but nothing to click
-- **Solution needed**: JS injection to create a visible "Book" button on dorm cards, or unhide/restyle the guest selector
+- **No per-room Book button**: Beds24 multi-room mode creates NO `.multiplebookbutton` elements inside room cards (only in the booking strip)
 
-This is a per-property issue — every hostel with dorm rooms will have it. The JS solution should detect rooms with hidden `sr1-` inputs and inject a booking mechanism.
+**Solution (implemented in iframe helper):**
+1. Detect dorm rooms by finding `input[type="hidden"][name^="sr1-"]`
+2. Unhide the guest selector (`select[id^="naa"]`) and all its hidden parent containers
+3. Restyle it to match private rooms' quantity dropdowns (right-aligned, matching border/padding)
+4. Relabel options from "Guests" to "Beds"
+5. Inject a Book button into `.b24-multipricebox` (same as private rooms)
+
+**Do not change the dorm's Beds24 room configuration** — it affects channel manager integrations with Hostelworld, Booking.com, etc.
+
+This is a per-property issue — every hostel with dorm rooms will have it. The iframe helper handles it automatically.
 
 ---
 
@@ -197,15 +295,31 @@ This is a per-property issue — every hostel with dorm rooms will have it. The 
 
 | Task | Tool | Notes |
 |---|---|---|
-| CSS/JS authoring | Claude Code / Claude chat | Write files, output for upload |
+| CSS/JS authoring | Claude Code / Claude chat | Write files, output for download |
+| VPS file upload | User via aaPanel file manager | Upload to site root, versioned filenames |
+| **File verification** | **Claude in Chrome or user browser** | **ALWAYS navigate to URL and confirm 200 before debugging** |
+| WordPress page editing | User or Claude in Chrome | Custom HTML block with div + script tag |
 | Beds24 admin field reads | Claude in Chrome | JS execution on admin pages |
-| Beds24 admin field writes | Claude in Chrome | Works for text fields; FAILS for `<script>`/`<style>` tags |
-| Beds24 admin `<script>`/`<style>` writes | Manual paste by user | Beds24 strips tags on programmatic save |
-| DOM inspection of booking page | Claude in Chrome | JS execution on booking page |
-| Visual verification | User screenshot or Claude in Chrome | MCP tabs may have 0 viewport width |
+| Beds24 admin field writes | Claude in Chrome | Works for text fields and `customhead`; FAILS for `custombody`/`customheadconfirm` `<script>`/`<style>` tags |
+| Beds24 admin `<script>`/`<style>` writes | Manual paste by user | Only needed for `custombody` and `customheadconfirm` fields |
+| DOM inspection of booking page | Claude in Chrome | JS execution on booking page; `offsetHeight` returns 0 in MCP tabs |
+| Visual verification | User screenshot | MCP tabs have 0 viewport width — screenshots are the ONLY reliable visual test |
 | Photo uploads | Manual by user | File picker inaccessible to automation |
 | Mobile QA | Manual on real iOS device | Cannot be automated |
-| VPS file upload | User via aaPanel file manager | |
+
+### Deployment Verification Protocol
+
+**Run this EVERY time a file is uploaded or a field is changed:**
+
+1. Navigate to each JS/CSS file URL in browser — confirm 200 (not 404) and correct content
+2. Check Beds24 `customhead` field has correct `<script src>` URL
+3. Check WordPress Custom HTML block has both `<div id="tnh-booking-root"></div>` AND `<script src>` tag
+4. Hard refresh the booking page
+5. Then test functionality
+
+**If step 1 fails:** File not uploaded, wrong path, or cached 404. Use a new version number or purge cache.
+**If step 2-3 fails:** Field/block was edited incorrectly. Re-enter.
+**Do NOT proceed to step 5 without passing steps 1-4.**
 
 ### Claude in Chrome Tips for Beds24
 

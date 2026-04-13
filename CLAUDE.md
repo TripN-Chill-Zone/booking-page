@@ -29,8 +29,34 @@
 
 ## File Locations
 - External CSS: `https://astrongpresence.com/CSS-base-v{N}.css` (currently v2)
+- Booking widget JS: `https://astrongpresence.com/booking-widget-v{N}.js` (currently v5)
+- Beds24 iframe helper JS: `https://astrongpresence.com/beds24-iframe-helper-v{N}.js` (currently v13)
 - Git source files: `docs/claude-custom/`
 - Critical CSS payload: inline in Beds24 `bookingcss` field (1,545 chars)
+
+## Booking Widget Architecture
+
+The booking page uses a custom widget (NOT the Beds24 WordPress plugin iframe). The WordPress page has a Custom HTML block:
+
+```html
+<div id="tnh-booking-root"></div>
+<script src="https://astrongpresence.com/booking-widget-v5.js"></script>
+```
+
+**Flow:**
+1. Widget renders date/guest picker on WordPress page
+2. On "Search Rooms", loads Beds24 booking page in a hidden iframe below widget
+3. Beds24 helper script hides booking strip/chrome, reports height via postMessage
+4. Guest selects room quantity and clicks per-room Book button
+5. `form.target = '_top'` breaks out of iframe — Beds24 checkout takes over full tab
+6. Back button returns to WordPress page
+
+**Beds24-side helper** loaded via `customhead` field:
+```html
+<script src="https://astrongpresence.com/beds24-iframe-helper-v13.js"></script>
+```
+
+Only activates when `referer=widget` is in the URL AND page is inside an iframe.
 
 ## WordPress Sites
 
