@@ -1,13 +1,15 @@
 /*
- * Trip'N'Hostel Booking Widget v4
+ * Trip'N'Hostel Booking Widget v6
  * Self-injecting — just add <div id="tnh-booking-root"></div> and load this script.
  * CONFIG is set per-property at the top.
+ *
+ * v6 changes: cssfile updated to CSS-base-v3.css
  */
 (function() {
   var CONFIG = {
     ownerid: '141266',
     propid:  '271142',
-    cssfile: 'https://astrongpresence.com/CSS-base-v2.css',
+    cssfile: 'https://astrongpresence.com/CSS-base-v3.css',
     minNights: 2,
     maxNights: 90,
     defaultNights: 2,
@@ -43,7 +45,8 @@
     + '}'
     + '.tnh-booking-widget *{box-sizing:border-box}'
     + '.tnh-booking-card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(45,72,45,.08);padding:28px 28px 24px;border:1px solid var(--tnh-border)}'
-    + '.tnh-booking-title{font-family:' + CONFIG.fontHeading + ';font-weight:600;font-size:18px;letter-spacing:-.01em;margin:0 0 20px;color:var(--tnh-text)}'
+    + '.tnh-booking-title{font-family:' + CONFIG.fontHeading + ';font-weight:600;font-size:18px;letter-spacing:-.01em;margin:0 0 4px;color:var(--tnh-text)}'
+    + '.tnh-min-stay{font-size:13px;font-weight:400;color:var(--tnh-text-light);margin:0 0 16px;}'
     + '.tnh-booking-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}'
     + '.tnh-field{display:flex;flex-direction:column;gap:5px}'
     + '.tnh-field-full{grid-column:1/-1}'
@@ -91,6 +94,7 @@
     + '<div class="tnh-booking-widget">'
     +   '<div class="tnh-booking-card">'
     +     '<h3 class="tnh-booking-title">Check Availability</h3>'
+    +     '<p class="tnh-min-stay">Minimum stay: ' + CONFIG.minNights + ' nights</p>'
     +     '<div class="tnh-booking-fields">'
     +       '<div class="tnh-field">'
     +         '<span class="tnh-label">Check In</span>'
@@ -224,7 +228,9 @@
       if (h > 500 && !roomsReady) {
         roomsReady = true;
         loadingEl.classList.remove('visible');
-        iframeEl.style.display = 'block';
+        iframeEl.style.opacity = '1';
+        iframeEl.style.position = 'static';
+        iframeEl.style.pointerEvents = '';
       }
     }
   });
@@ -237,8 +243,11 @@
     summaryEl.textContent = summary;
 
     loadingEl.classList.add('visible');
-    iframeEl.style.display = 'none';
-    iframeEl.style.height = '0';
+    iframeEl.style.opacity = '0';
+    iframeEl.style.position = 'absolute';
+    iframeEl.style.pointerEvents = 'none';
+    iframeEl.style.display = 'block';
+    iframeEl.style.height = '1px';
     roomsReady = false;
     resultsEl.classList.add('open');
 
@@ -258,8 +267,10 @@
         if (!roomsReady) {
           roomsReady = true;
           loadingEl.classList.remove('visible');
-          iframeEl.style.display = 'block';
-          if (!iframeEl.style.height || iframeEl.style.height === '0px') {
+          iframeEl.style.opacity = '1';
+          iframeEl.style.position = 'static';
+          iframeEl.style.pointerEvents = '';
+          if (!iframeEl.style.height || iframeEl.style.height === '1px') {
             iframeEl.style.height = '2400px';
           }
         }
@@ -276,8 +287,10 @@
   function hideResults() {
     resultsEl.classList.remove('open');
     iframeEl.src = '';
-    iframeEl.style.display = 'none';
-    iframeEl.style.height = '0';
+    iframeEl.style.opacity = '0';
+    iframeEl.style.position = 'absolute';
+    iframeEl.style.pointerEvents = 'none';
+    iframeEl.style.height = '1px';
     loadingEl.classList.remove('visible');
   }
 

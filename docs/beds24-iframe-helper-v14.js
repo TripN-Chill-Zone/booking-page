@@ -1,6 +1,11 @@
 /*
- * TNH Beds24 Iframe Helper v13
- * Load via customhead: <script src="https://astrongpresence.com/beds24-iframe-helper-v13.js"></script>
+ * TNH Beds24 Iframe Helper v14
+ * Load via customhead: <script src="https://astrongpresence.com/beds24-iframe-helper-v14.js"></script>
+ *
+ * Changes from v13:
+ * - Hide #b24bookshoppingcart (bottom summary/Book bar below rooms)
+ * - Fix dorm dropdown: use flexbox for proper right-alignment matching other rooms
+ * - Improve height reporting: use .b24fullcontainer-rooms bottom edge, not full scrollHeight
  */
 (function(){
   var isWidget = location.search.indexOf('referer=widget') >= 0;
@@ -11,25 +16,38 @@
    * ============================================ */
   if (isWidget && isEmbedded) {
     var s = document.createElement('style');
-    s.textContent = ''
-      + '.b24fullcontainer-selector{display:none!important}'
-      + '.b24fullcontainer-top{display:none!important}'
-      + '.b24fullcontainer-ownerrow1{display:none!important}'
-      + '.b24fullcontainer-footer{display:none!important}'
-      + '.b24fullcontainer-proprow1{display:none!important}'
-      + '.b24fullcontainer-proprow2{display:none!important}'
-      + '.b24fullcontainer-proprow11{display:none!important}'
-      + '.b24fullcontainer-ownerrow11{display:none!important}'
-      + 'body{background:transparent!important;margin:0!important;padding:0!important}';
+    s.textContent = '' +
+      '.b24fullcontainer-selector{display:none!important}' +
+      '.b24fullcontainer-top{display:none!important}' +
+      '.b24fullcontainer-ownerrow1{display:none!important}' +
+      '.b24fullcontainer-footer{display:none!important}' +
+      '.b24fullcontainer-proprow1{display:none!important}' +
+      '.b24fullcontainer-proprow2{display:none!important}' +
+      '.b24fullcontainer-proprow11{display:none!important}' +
+      '.b24fullcontainer-ownerrow11{display:none!important}' +
+      '#b24bookshoppingcart{display:none!important}' +
+      'body{background:transparent!important;margin:0!important;padding:0!important}';
     document.head.appendChild(s);
 
-    /* Height: use scrollHeight only, do NOT trim body.
-       The hidden elements have display:none so they contribute 0 to scrollHeight.
-       No body height trimming = no risk of clipping content. */
+    /*
+     * Height: find the last visible .b24fullcontainer-rooms and measure
+     * its bottom edge. This avoids counting hidden containers and excess
+     * body padding below the rooms.
+     * Fallback to scrollHeight if rooms container isn't found yet.
+     */
     function send() {
-      var h = document.documentElement.scrollHeight;
+      var h;
+      var rooms = document.querySelector('.b24fullcontainer-rooms');
+      if (rooms) {
+        var rect = rooms.getBoundingClientRect();
+        h = Math.ceil(rect.bottom + window.scrollY);
+      } else {
+        h = document.documentElement.scrollHeight;
+      }
       h = Math.max(h, 200);
-      try { window.parent.postMessage(JSON.stringify({type:'tnh-height', height:h}), '*'); } catch(e) {}
+      try {
+        window.parent.postMessage(JSON.stringify({type:'tnh-height', height:h}), '*');
+      } catch(e) {}
     }
 
     if (document.readyState === 'complete') send();
@@ -47,6 +65,9 @@
 
   /* ============================================
    * SECTION 3: Dorm booking fix
+   * Move the guest selector into the main price box so it sits
+   * inline with the "from €XX" price and Book button, matching
+   * private room layout. Hide the second (orphan) price box.
    * ============================================ */
   function fixDormRooms() {
     var hiddenInputs = document.querySelectorAll('input[type="hidden"][name^="sr1-"]');
@@ -63,33 +84,7 @@
       var guestSelect = offer.querySelector('select[id^="naa"]');
       if (!guestSelect) return;
 
-      /* Make visible and style to match other rooms */
-      guestSelect.style.cssText = ''
-        + 'display:inline-block!important;visibility:visible!important;'
-        + 'width:auto;min-width:80px;padding:6px 10px;'
-        + 'font-family:inherit;font-size:14px;'
-        + 'border:1.5px solid #d4e0d4;border-radius:6px;'
-        + 'background:#F7FAFC;color:#2D482D;cursor:pointer;'
-        + 'margin-right:8px;';
-
-      /* Unhide all ancestors up to the offer */
-      var el = guestSelect.parentElement;
-      while (el && el !== offer) {
-        var cs = window.getComputedStyle(el);
-        if (cs.display === 'none' || cs.visibility === 'hidden') {
-          el.style.setProperty('display', 'block', 'important');
-          el.style.setProperty('visibility', 'visible', 'important');
-        }
-        el = el.parentElement;
-      }
-
-      /* Right-align the price box to match other rooms */
-      var priceBox = offer.querySelector('.b24-multipricebox');
-      if (priceBox) {
-        priceBox.style.cssText = 'text-align:right;';
-      }
-
-      /* Relabel "Guests" → "Beds" */
+      /* Relabel "Guests" -> "Beds" */
       for (var i = 0; i < guestSelect.options.length; i++) {
         var opt = guestSelect.options[i];
         opt.text = opt.text.replace(/Guests?/g, function(m) {
@@ -97,11 +92,52 @@
         });
       }
 
-      var selectLabel = offer.querySelector('.roomofferqtyselectlabel');
-      if (selectLabel) {
-        selectLabel.textContent = 'Beds:';
-        selectLabel.style.setProperty('display', 'inline-block', 'important');
-        selectLabel.style.setProperty('visibility', 'visible', 'important');
+      /* Style the select to match other rooms' qty dropdowns */
+      guestSelect.style.cssText = '' +
+        'display:inline-block!important;visibility:visible!important;' +
+        'width:auto;min-width:80px;padding:6px 10px;' +
+        'font-family:inherit;font-size:14px;' +
+        'border:1.5px solid #d4e0d4;border-radius:6px;' +
+        'background:#F7FAFC;color:#2D482D;cursor:pointer;' +
+        'margin-right:8px;';
+
+      /* Find the main price box (the one with the "from" price) */
+      var allBoxes = offer.querySelectorAll('.b24-multipricebox');
+      var mainBox = null;
+      var orphanBox = null;
+      allBoxes.forEach(function(box) {
+        if (box.classList.contains('hidden')) return;
+        if (box.querySelector('[id^="from-"]')) {
+          mainBox = box;
+        } else if (box.querySelector('select[id^="naa"]')) {
+          orphanBox = box;
+        }
+      });
+
+      if (mainBox) {
+        /* Build a label + select wrapper */
+        var wrapper = document.createElement('span');
+        wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:8px;';
+
+        var label = document.createElement('span');
+        label.textContent = 'Beds:';
+        label.style.cssText = 'font-size:13px;font-weight:500;color:#5a6f5a;';
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(guestSelect);
+
+        /* Insert before the "from" price in the main box */
+        var fromPrice = mainBox.querySelector('[id^="from-"]');
+        if (fromPrice) {
+          mainBox.insertBefore(wrapper, fromPrice);
+        } else {
+          mainBox.insertBefore(wrapper, mainBox.firstChild);
+        }
+      }
+
+      /* Hide the orphan price box (now empty) */
+      if (orphanBox) {
+        orphanBox.style.setProperty('display', 'none', 'important');
       }
     });
   }
@@ -126,33 +162,30 @@
       btn.type = 'button';
       btn.className = 'tnh-book-btn';
       btn.textContent = 'Book';
-      btn.style.cssText = ''
-        + 'display:inline-block;padding:8px 24px;margin-top:10px;'
-        + 'font-family:inherit;font-size:14px;font-weight:600;'
-        + 'color:#fff;background:#6DA17D;border:none;border-radius:6px;'
-        + 'cursor:pointer;transition:background .2s;'
-        + 'float:right;';
+      btn.style.cssText = '' +
+        'display:inline-block;padding:8px 24px;margin-top:10px;' +
+        'font-family:inherit;font-size:14px;font-weight:600;' +
+        'color:#fff;background:#E7A35C;border:none;border-radius:6px;' +
+        'cursor:pointer;transition:background .2s;' +
+        'float:right;';
 
-      btn.addEventListener('mouseenter', function() { btn.style.background = '#5b8d6a'; });
-      btn.addEventListener('mouseleave', function() { btn.style.background = '#6DA17D'; });
+      btn.addEventListener('mouseenter', function() { btn.style.background = '#d4923e'; });
+      btn.addEventListener('mouseleave', function() { btn.style.background = '#E7A35C'; });
 
       btn.addEventListener('click', function(e) {
         e.preventDefault();
-
         if (qtySelect) {
           if (qtySelect.value === '0' || qtySelect.value === '') {
             qtySelect.value = '1';
             qtySelect.dispatchEvent(new Event('change', {bubbles: true}));
           }
         }
-
         if (hiddenInput && guestSelect) {
           if (guestSelect.value === '0' || guestSelect.value === '') {
             guestSelect.value = '1';
             guestSelect.dispatchEvent(new Event('change', {bubbles: true}));
           }
         }
-
         var form = document.getElementById('formlook');
         if (form) form.submit();
       });
@@ -162,10 +195,9 @@
   }
 
   /* ============================================
-   * INIT — single observer with guard
+   * INIT - single observer with guard
    * ============================================ */
   var isModifying = false;
-
   function applyFixes() {
     if (isModifying) return;
     isModifying = true;

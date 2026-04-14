@@ -1,7 +1,7 @@
 # Beds24 Booking Page — DOM Structure Reference
 
 Verified against: `booking2.php?propid=271142` (Layout 6, Template 6)
-Last verified: Session 5 (April 2026)
+Last verified: Session 7 (April 2026)
 
 ## Page Structure
 
@@ -37,6 +37,10 @@ body.colorbody.colorbody-en.layout6
             div.b24room#roomid{roomId}
               (see Room Card Structure below)
           div#notavailableforselection        ← "not available" message
+      div#b24bookshoppingcart                ← BOTTOM SUMMARY BAR (hidden by CSS v3)
+        div.container
+          div.row
+            div.multiplebookbutton           ← another Book button (hidden)
       div.b24fullcontainer-proprow11         ← property bottom content
       div.b24fullcontainer-ownerrow11
       div.b24fullcontainer-footer
@@ -63,7 +67,7 @@ div.b24room#roomid{roomId}
       │      div.row                                     ← offer modules row
       │        div.b24-offer-select.b24-offer--o{roomId}-1
       │        │  div.multiroomshow
-      │        │    div.b24-multipricebox.pull-right
+      │        │    div.b24-multipricebox.pull-right      ← MAIN PRICE BOX
       │        │      div.form-inline
       │        │        span.roomofferqtyselectlabel ("Select")
       │        │        select#sr1-{roomId}              ← QTY DROPDOWN
@@ -73,8 +77,12 @@ div.b24room#roomid{roomId}
       │        │      div#price-2-1-{roomId}             ← per-occupancy (HIDE)
       │        │      div#price-3-1-{roomId}             ← per-occupancy (HIDE)
       │        │      select#naa1-1-{roomId}             ← guest count (HIDE)
+      │        │      [button.tnh-book-btn]              ← INJECTED by helper v14
       │        │    div.multiplebookbutton               ← Book button container
       │        │      button.at_bookingbut               ← Book button
+      │        │    div.b24-multipricebox.hidden          ← PER-OCCUPANCY BOX (hidden)
+      │        │    div.b24-multipricebox.hidden          ← PER-OCCUPANCY BOX (hidden)
+      │        │    div.b24-multipricebox.hidden          ← PER-OCCUPANCY BOX (hidden)
       │        div.b24-offer-pricetable.b24-offer--o{roomId}-1  ← DATE STRIP
       │    hr.bb.hidden
       │
@@ -105,6 +113,61 @@ div.b24room#roomid{roomId}
       └─ div.clearfix
 ```
 
+## Date Strip Table Structure
+
+```
+table.roomofferpricetable
+  tr.b24-bookingstrip.bt.bb.bl.br          ← HEADER ROW (hidden by CSS/JS)
+    td.border.colorbookingstrip.at_checkin    "Check In"
+    td.border.colorbookingstrip.at_checkout   "Check Out" (repeated per date column)
+  tr                                        ← DATE ROW
+    td.border                                "20 April", "21 April", etc.
+  tr.b24-priceline                          ← AVAILABILITY ROW
+    td.border.bbb.at_pricetd.dateavail.datestay       "Available" (in stay range)
+    td.border.bbb.at_pricetd.dateavail.prevdatestay   "Available" (after stay)
+    td.border.bbb.at_pricetd.datenotavail             "- - - - - -" (unavailable)
+```
+
+### Date Cell Classes
+
+| Class | Meaning | Our Styling |
+|---|---|---|
+| `dateavail` | Available for booking | Cursor default (clicks blocked) |
+| `datestay` | Within selected stay range | Green background (#6DA17D) |
+| `datenotavail` | Not available | Light red bg, darker red text, strikethrough |
+| `datepast` | Past date | Low opacity |
+| `prevdatestay` | Previous cell was a stay date | Used for split-date gradients |
+| `prevdateavail` | Previous cell was available | Used for split-date gradients |
+| `prevdatenotavail` | Previous cell was unavailable | Used for split-date gradients |
+| `at_pricetd` | All price table data cells | `pointer-events: none` (blocks click navigation) |
+
+**Date cells have no `onclick` or `<a>` tags.** Click handlers are attached via Beds24's delegated event listeners. Blocked by `pointer-events: none`.
+
+## Dorm Room DOM Differences
+
+| Feature | Private Rooms | Dorm Rooms |
+|---|---|---|
+| Quantity selector | `select#sr1-{roomId}` (dropdown) | `input[type="hidden"][name="sr1-{roomId}"][value="1"]` |
+| Guest selector | `select#naa1-1-{roomId}` (hidden by CSS) | `select#naa1-1-{roomId}` (moved to main box by helper) |
+| Price boxes | 1 visible + N hidden | 2 visible + N hidden (helper hides orphan) |
+| Booking mechanism | Qty dropdown + strip Book button | Guest selector + injected Book button |
+
+### Dorm Price Box Layout (after helper v14)
+
+```
+div.b24-multipricebox (Box 0 — main)
+  div.form-inline (empty — no qty dropdown for dorms)
+  span (injected wrapper)
+    span "Beds:"
+    select#naa1-1-{roomId} (moved here from Box 1)
+  div#from-1-{roomId} "from €32.00"
+  button.tnh-book-btn "Book"
+
+div.b24-multipricebox (Box 1 — orphan, hidden by helper)
+  div.b24-form-inline (now empty)
+  div.clearfix
+```
+
 ## Selector Quick Reference
 
 ### Booking Strip
@@ -112,11 +175,9 @@ div.b24room#roomid{roomId}
 |---|---|
 | Strip wrapper | `.b24fullcontainer-selector` |
 | Strip inner | `.b24-bookingstrip` / `#b24scroller` |
-| Check-in column | `.b24-selector-checkin` |
 | Check-in input | `#inputcheckin` |
 | Check-out input | `#inputcheckout` |
 | Nights dropdown | `#inputnumnight` |
-| Nights column | `.b24-selector-numnight` |
 | Book/submit button | `.b24-bookingstrip .at_bookingbut` |
 | Multi-room toggle | `#multiroom` |
 | New search link | `.newsearch` |
@@ -127,90 +188,65 @@ div.b24room#roomid{roomId}
 | Room container | `.b24fullcontainer-rooms` |
 | Room wrapper | `.b24room#roomid{roomId}` |
 | Room panel | `.b24panel-room` |
-| Room heading bar | `.b24-roompanel-heading` |
 | Room name text | `.at_roomnametext` / `#roomnametext{roomId}` |
-| Panel body | `.b24panel` |
 | Offer section | `.offer` |
 | Date strip | `.b24-offer-pricetable` |
+| Date strip table | `.roomofferpricetable` |
+| Date strip cells | `.roomofferpricetable .at_pricetd` |
 | Qty/price area | `.b24-offer-select` |
+| Main price box | `.b24-multipricebox:not(.hidden)` (first match) |
 | Quantity dropdown | `select[id^="sr1-"]` |
 | Dorm qty (hidden) | `input[name="sr1-{roomId}"]` |
 | Guest count dropdown | `select[id^="naa"]` |
 | "From" price | `[id^="from-"]` |
 | Per-occupancy prices | `[id^="price-"][class*="b24-roomprice"]` |
-| Book button container | `.multiplebookbutton` |
-| Book button | `.multiplebookbutton .at_bookingbut` |
+| Hidden price boxes | `.b24-multipricebox.hidden` |
+| Injected Book button | `.tnh-book-btn` |
+| Dorm fix marker | `.tnh-dorm-fixed` |
 
-**IMPORTANT:** In multi-room booking mode (`bookpageallowmulti = 1`), `.multiplebookbutton` elements exist ONLY in the booking strip area (2 instances), NOT inside individual room cards. Per-room Book buttons must be injected via JS.
+**IMPORTANT:** In multi-room booking mode, `.multiplebookbutton` elements exist ONLY in the booking strip area (2 instances), NOT inside individual room cards. Per-room Book buttons are injected by helper v14.
+
+### Bottom Summary Bar
+| Target | Selector |
+|---|---|
+| Shopping cart wrapper | `#b24bookshoppingcart` |
+| Property bottom content | `.b24fullcontainer-proprow11` |
+
+Both hidden by CSS v3 and helper v14.
 
 ### Photo Slider
 | Target | Selector |
 |---|---|
 | Slider module | `.b24-room-slider` |
-| Collapse wrapper | `[id^="collapseslider"]` / `#collapseslider{roomId}` |
-| Carousel | `.carousel.slide` / `#carousel-generic-r{propId}_{roomId}` |
+| Collapse wrapper | `#collapseslider{roomId}` |
+| Carousel | `.carousel.slide` |
 | Active image | `.carousel .item.active img` |
-| Carousel controls | `.carousel-control` |
 
 ### Description
 | Target | Selector |
 |---|---|
 | Description module | `.b24-room-desc` |
-| Collapse wrapper | `[id^="collapsedesc"]` / `#collapsedesc{roomId}` |
+| Collapse wrapper | `#collapsedesc{roomId}` |
 | Fakelinks | `.fakelink` |
 
 ### Calendar
 | Target | Selector |
 |---|---|
 | Property calendar | `.b24-prop-60` |
-| Room calendar (duplicate) | `.b24-room-cal` |
-| Offer calendar | `.b24-offer-cal` |
-| Calendar month | `.roomoffercalendarmonth` |
-| Calendar header | `.monthcalendarhead` |
+| Room calendar (duplicate, hidden) | `.b24-room-cal` |
+| Offer calendar (hidden) | `.b24-offer-cal` |
 | Selected dates | `.datestay` |
 | Available dates | `.dateavail` |
 | Unavailable dates | `.datenotavail` |
-| Past dates | `.datepast` |
 
 ### Features
 | Target | Selector |
 |---|---|
 | Features module | `.b24-room-106` (module ID 106) |
-| Property features field | `textarea#featurecodes` (on property description page) |
 
 ### Other
 | Target | Selector |
 |---|---|
 | Body | `.colorbody.colorbody-en.layout6` |
 | Form | `form#formlook` |
-| Price boxes | `.b24-multipricebox` |
-| Multi-room show sections | `.multiroomshow` |
 | Footer | `.b24fullcontainer-footer` |
-| Property description areas | `.b24fullcontainer-proprow1`, `.b24fullcontainer-proprow2` |
-
-## Collapsed-by-Default Elements
-
-Beds24 adds `hidden-xs hidden-sm hidden-md hidden-lg` (all breakpoints hidden) to these wrapper divs:
-
-| Element | ID Pattern | Contains |
-|---|---|---|
-| Photo slider | `#collapseslider{roomId}` | The carousel with room photos |
-| Description | `#collapsedesc{roomId}` | The room description text |
-
-These are toggled visible by clicking `.fakelink` elements ("pictures", "more details"). Since we hide fakelinks, we must force these open with CSS:
-
-```css
-[id^="collapseslider"] { display: block !important; height: auto !important; }
-[id^="collapsedesc"] { display: block !important; height: auto !important; }
-```
-
-## Dorm Room DOM Differences
-
-Dorm rooms (configured for channel manager compatibility) render differently:
-
-| Feature | Private Rooms | Dorm Rooms |
-|---|---|---|
-| Quantity selector | `select#sr1-{roomId}` (dropdown) | `input[type="hidden"][name="sr1-{roomId}"][value="1"]` |
-| Guest selector | `select#naa1-1-{roomId}` (dropdown, multiple options) | `select#naa1-1-{roomId}` (only "0 Guests" / "1 Guest") |
-| Visible booking control | Quantity dropdown + Book button appears when selected | Nothing visible — hidden input auto-selects 1 bed |
-| Enquire link | Not present | `div.hidden.b24roomenquire` (hidden by Beds24, not our CSS) |

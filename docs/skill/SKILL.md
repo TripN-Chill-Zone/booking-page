@@ -85,7 +85,7 @@ The booking widget has a CONFIG block at the top:
 var CONFIG = {
   ownerid: '141266',
   propid:  '271142',
-  cssfile: 'https://astrongpresence.com/CSS-base-v2.css',
+  cssfile: 'https://astrongpresence.com/CSS-base-v3.css',
   minNights: 2,
   maxNights: 90,
   defaultNights: 2,
@@ -99,27 +99,29 @@ For rollout, create per-property widget files with updated CONFIG values.
 
 ### Iframe Helper Behavior
 
-The helper script (`beds24-iframe-helper-v{N}.js`) loaded via `customhead` does different things depending on context:
+The helper script (`beds24-iframe-helper-v{N}.js`) loaded via "Insert in HTML <HEAD> bottom" does different things depending on context:
 
 **When embedded via widget** (`referer=widget` in URL AND inside iframe):
-- Hides booking strip, property headers/footers, bottom summary bar
-- Reports page height to parent via `postMessage` for iframe sizing
+- Hides booking strip, property headers/footers, bottom summary bar, shopping cart
+- Reports page height to parent via `postMessage` (uses `getBoundingClientRect` on `.b24fullcontainer-rooms`)
 - Sets `form.target = '_top'` so checkout breaks out of iframe
 
 **Always** (whether embedded or direct visit):
-- Injects per-room Book buttons (Beds24 multi-room mode has NONE per-room)
-- Fixes dorm room booking (unhides guest selector, relabels "Guests" → "Beds")
+- Injects per-room orange Book buttons (Beds24 multi-room mode has NONE per-room)
+- Fixes dorm room booking (moves guest selector into main price box, relabels "Guests" → "Beds", hides orphan price box)
+- Injects date strip color overrides (green stay dates, light red unavailable, non-clickable cells, hidden header row)
 
 ### Height Sync Between WordPress and Beds24
 
-The iframe has `scrolling="no"`. The helper script reports the Beds24 page's `scrollHeight` to the parent via `postMessage`. The widget JS receives these messages and sets the iframe height accordingly.
+The iframe has `scrolling="no"`. The helper reports height via `postMessage`. The widget receives these and sets iframe height.
 
-**Key rules for height measurement:**
-- Use `document.documentElement.scrollHeight` — it works reliably
-- Do NOT set `body.style.height` to trim the page — risks clipping content and creates self-referencing loops
-- `display:none` elements contribute 0 to `scrollHeight` — hiding elements is sufficient
-- The widget shows a loading spinner until reported height exceeds 500px (rooms rendered)
+**Key rules:**
+- Use `getBoundingClientRect().bottom` on `.b24fullcontainer-rooms` — avoids counting hidden footer containers
+- Do NOT set `body.style.height` — risks clipping and self-referencing loops
+- `display:none` elements contribute 0 — hiding elements is sufficient
+- Widget shows loading spinner until reported height > 500px
 - 8-second fallback shows iframe at 2400px if no height message arrives
+- **CRITICAL: iframe must use `opacity:0` during loading, NOT `display:none`.** `display:none` prevents content rendering inside the iframe, making all height measurements return 0. This caused an 18-second loading delay on desktop (Session 7).
 
 ### CSS Update Protocol
 
@@ -134,11 +136,11 @@ The iframe has `scrolling="no"`. The helper script reports the Beds24 page's `sc
 1. Create new file with incremented version (e.g., `beds24-iframe-helper-v{N+1}.js`)
 2. Upload to VPS via aaPanel file manager
 3. **Verify file is accessible** — navigate to URL, confirm 200 response and correct content
-4. Update the corresponding Beds24 field (`customhead`) or WordPress HTML block
+4. Update the corresponding Beds24 field ("Insert in HTML <HEAD> bottom") or WordPress HTML block
 5. Hard refresh to verify
 6. If 404: file not uploaded, or cached 404 — use new version number or purge cache
 
-**CRITICAL: Always verify file accessibility (step 3) before debugging anything else.**
+**CRITICAL: Always verify file accessibility (step 3) before debugging anything else. This protocol caught two deployment failures in Session 7.**
 
 ---
 
@@ -274,16 +276,17 @@ h1, h2, h3, h4, h5, h6, .at_roomnametext, .b24-roompanel-heading, .monthcalendar
 Dorm rooms configured for channel manager compatibility (Hostelworld, Booking.com) behave differently from private rooms on the Beds24 booking page:
 
 - **Quantity selector**: renders as `input[type="hidden"]` auto-set to 1, NOT a `<select>` dropdown
-- **Guest selector**: only "0 Guests" / "1 Guest" — hidden by CSS but the hidden input handles selection
-- **No visible booking mechanism**: the guest sees the price and date strip but nothing to click
-- **No per-room Book button**: Beds24 multi-room mode creates NO `.multiplebookbutton` elements inside room cards (only in the booking strip)
+- **Guest selector**: only "0 Guests" / "1 Guest" — in a separate `.b24-multipricebox` from the "from" price
+- **No visible booking mechanism**: without the helper, the guest sees only the price and date strip
+- **Two visible price boxes**: Box 0 has the "from" price; Box 1 has the guest selector. This creates two rows.
 
-**Solution (implemented in iframe helper):**
+**Solution (implemented in iframe helper v14):**
 1. Detect dorm rooms by finding `input[type="hidden"][name^="sr1-"]`
-2. Unhide the guest selector (`select[id^="naa"]`) and all its hidden parent containers
-3. Restyle it to match private rooms' quantity dropdowns (right-aligned, matching border/padding)
-4. Relabel options from "Guests" to "Beds"
-5. Inject a Book button into `.b24-multipricebox` (same as private rooms)
+2. Relabel guest selector options from "Guests" to "Beds"
+3. Move the guest selector from Box 1 (orphan) into Box 0 (main, contains "from" price) — inserted before the "from" price element
+4. Hide Box 1 (now empty)
+5. Inject an orange Book button into Box 0 (same as private rooms)
+6. Result: `[Beds: 1 Bed ▼] [from €32.00] [Book]` on one line, matching private rooms
 
 **Do not change the dorm's Beds24 room configuration** — it affects channel manager integrations with Hostelworld, Booking.com, etc.
 

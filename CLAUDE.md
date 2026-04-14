@@ -3,36 +3,47 @@
 ## Reference Documents
 - Execution plan: docs/beds24-execution.md
 - Architecture decisions: docs/beds24-execution-context.md
-- Session 5 handoff: docs/session-handoff-5.md
+- Session 7 handoff: docs/session-handoff-7.md
 - Skill: docs/skill/SKILL.md (+ references/ subfolder)
 - Beds24 template variables: docs/beds24-template-variables.md (for confirmation page work — Phase 3 step 6 and Phase 4)
 
 ## Current Status
 - Phase 0.3 (Claude in Chrome content extraction) — PASSED
-- Phase 0.1 (WordPress widget parameter passing) — FAILED (fallback: custom Kadence widget)
-- Phase 0.2 (price injection feasibility) — PASSED (`#roomprice-1-{roomId}`)
+- Phase 0.1 (WordPress widget parameter passing) — RESOLVED via custom widget
+- Phase 0.2 (price injection feasibility) — PASSED (`#roomprice-1-{roomId}`) — not yet implemented
 - Phase 2 (admin configuration, Chill Zone) — COMPLETE
-- Phase 3 (CSS/JS authoring) — IN PROGRESS
-  - External CSS deployed and working via `&cssfile=` parameter
-  - Inline `bookingcss` trimmed to critical CSS only (1,545 chars)
-  - Hide/reveal JS and confirmation styles pasted manually by user
-  - Multiple layout and design issues still open (see session-handoff-5.md)
+- Phase 3 (CSS/JS authoring) — IN PROGRESS (major fixes done, UX polish remaining)
+  - External CSS v3 deployed and working via `&cssfile=` parameter
+  - Iframe helper v14 deployed (book buttons, dorm fix, date strip overrides, height sync)
+  - Widget v6 deployed (loading fix, min-stay note, default 1 guest, centered Clear Search)
+  - Inline `bookingcss` field: critical CSS only (~1,545 chars)
+  - "Insert in HTML <BODY> bottom" field: empty (hide/reveal JS removed)
+  - Remaining: price UX improvements, room card layout polish, accessibility
 - Phase 4 (mobile QA) — NOT STARTED
 - VPS deploy — WORKING (aaPanel file manager, files in site root)
 
 ## Project Conventions
 - American spelling throughout
 - No time estimates
-- CSS versioned filenames: CSS-base-v1.css, CSS-base-v2.css etc. (hosted on astrongpresence.com root)
+- CSS versioned filenames: CSS-base-v1.css, CSS-base-v2.css etc.
+- JS versioned filenames: booking-widget-v6.js, beds24-iframe-helper-v14.js
+- All hosted on astrongpresence.com root via aaPanel
 - JS must fail silently to no-display on any error
 - Never patch price injection discrepancies — abandon immediately
+- Use Beds24 admin field names when communicating with user (e.g., "Insert in HTML <HEAD> bottom" not "customhead")
 
 ## File Locations
-- External CSS: `https://astrongpresence.com/CSS-base-v{N}.css` (currently v2)
-- Booking widget JS: `https://astrongpresence.com/booking-widget-v{N}.js` (currently v5)
-- Beds24 iframe helper JS: `https://astrongpresence.com/beds24-iframe-helper-v{N}.js` (currently v13)
-- Git source files: `docs/claude-custom/`
-- Critical CSS payload: inline in Beds24 `bookingcss` field (1,545 chars)
+- External CSS: `https://astrongpresence.com/CSS-base-v3.css` (currently v3)
+- Booking widget JS: `https://astrongpresence.com/booking-widget-v6.js` (currently v6)
+- Beds24 iframe helper JS: `https://astrongpresence.com/beds24-iframe-helper-v14.js` (currently v14)
+- Critical CSS payload: inline in Beds24 "Custom CSS" field (~1,545 chars)
+
+## Caching
+- LiteSpeed caching plugin: **deactivated** on chillzone.astrongpresence.com
+- Cloudflare: **development mode activated** (bypasses cache; will eventually expire)
+- Versioned filenames are the primary cache-busting mechanism
+- When uploading a new version: increment filename, update all references (Beds24 admin fields, WordPress block, widget CONFIG)
+- Cloudflare/LiteSpeed cache 404 responses — never request a URL before the file exists
 
 ## Booking Widget Architecture
 
@@ -40,23 +51,33 @@ The booking page uses a custom widget (NOT the Beds24 WordPress plugin iframe). 
 
 ```html
 <div id="tnh-booking-root"></div>
-<script src="https://astrongpresence.com/booking-widget-v5.js"></script>
+<script src="https://astrongpresence.com/booking-widget-v6.js"></script>
 ```
 
 **Flow:**
-1. Widget renders date/guest picker on WordPress page
-2. On "Search Rooms", loads Beds24 booking page in a hidden iframe below widget
-3. Beds24 helper script hides booking strip/chrome, reports height via postMessage
-4. Guest selects room quantity and clicks per-room Book button
-5. `form.target = '_top'` breaks out of iframe — Beds24 checkout takes over full tab
-6. Back button returns to WordPress page
+1. Widget renders date/guest picker on WordPress page ("Check Availability" + "Minimum stay: 2 nights")
+2. On "Search Rooms", creates iframe with `opacity:0; position:absolute` (invisible but renderable)
+3. Beds24 helper script inside iframe hides booking strip/chrome, reports height via postMessage
+4. When height > 500px, widget sets iframe to `opacity:1; position:static` — rooms appear, spinner hides
+5. Guest selects room quantity and clicks per-room orange Book button
+6. `form.target = '_top'` breaks out of iframe — Beds24 checkout takes over full tab
+7. Back button returns to WordPress page
 
-**Beds24-side helper** loaded via `customhead` field:
+**CRITICAL: iframe must NOT use `display:none` during loading.** Use `opacity:0` instead. `display:none` prevents content rendering and measurement inside the iframe, causing height to stay at 0 and the loading spinner to persist indefinitely on desktop.
+
+**Beds24-side helper** loaded via "Insert in HTML <HEAD> bottom" field:
 ```html
-<script src="https://astrongpresence.com/beds24-iframe-helper-v13.js"></script>
+<script src="https://astrongpresence.com/beds24-iframe-helper-v14.js"></script>
 ```
 
-Only activates when `referer=widget` is in the URL AND page is inside an iframe.
+Helper sections:
+1. Hide chrome + height sync (widget iframe only)
+2. Break out of iframe on form submit
+3. Dorm booking fix (move guest selector into main price box)
+4. Inject per-room orange Book buttons
+5. Date strip overrides (green stay dates, red unavailable, non-clickable cells, hide header row)
+
+Only Section 1 is conditional on `isWidget && isEmbedded`. All other sections run on every page load.
 
 ## WordPress Sites
 
@@ -69,38 +90,27 @@ Only activates when `referer=widget` is in the URL AND page is inside an iframe.
 | `wordpress-chillzone` | `chillzone.astrongpresence.com` | Property site |
 
 MCP config location: `C:\Users\Dr. COMPUTER\booking-page\.mcp.json`
-Each server uses the `cmd /c` wrapper for npx (required on Windows).
-Plugin: `WordPress/mcp-adapter` (current, from github.com/WordPress/mcp-adapter/releases).
-
-### MCP Capabilities
-The WordPress MCP servers provide REST API CRUD access to all standard WordPress endpoints (posts, pages, media, settings, themes, plugins, widgets). Use for:
-- Phase 1: Content extraction (room descriptions, features, policies, brand colors, fonts)
-- Phase 5: Batch content extraction across properties
-- Verifying WordPress widget configuration across all sites
-
-MCP cannot interact with Beds24 (separate platform, no MCP server exists).
 
 ## Beds24 Property
 - Property ID: 271142
 - Room IDs: Deluxe King Suite (567218), Single Bed Dorm (567219), Single Room (567220), Standard Double (567221)
 - Booking page URL: `https://www.beds24.com/booking2.php?ownerid=141266&propid=271142`
-- Booking page with CSS: append `&cssfile=https://astrongpresence.com/CSS-base-v2.css`
-- Booking page URL parameters: `checkin`, `numnight`, `numadult`, `numchild`, `roomid`, `propid`, `cssfile`, `layout`, `lang`, `referer`, `hidedesc`, `hidefooter`, `numdisplayed`, `group`, `nogroup`, `version`
+- Booking page with CSS: append `&cssfile=https://astrongpresence.com/CSS-base-v3.css`
 - Price element selector: `#roomprice-1-{roomId}`
 - Admin field IDs: see docs/beds24-admin-field-map.md
 
-### Phase 2 Config Applied (Chill Zone)
-- Style panel: brand colors set (primary `#E7A35C`, secondary `#6DA17D`, text `#2D482D`, bg `#F7FAFC`)
-- Google Fonts: Lexend + Lexend Giga loaded via `customheadtop`
-- CSS font override: in `bookingcss` field
-- Content: property description, all 4 room descriptions, general policy, cancellation policy
-- Photos: positioned per room (Suite 5, Dorm 1, Single 5, Double 10)
-- Multiple Room Booking: Enabled (changed from "Guest Can Choose" in Session 5)
-- Room Features module (106): added to Room Bottom in Layout
+### Beds24 Admin Fields (Developer Page, Property 271142)
 
-### Phase 3 Current State (Session 5)
+| Beds24 Field Name | Field ID | Current Content |
+|---|---|---|
+| Insert in HTML <HEAD> top | `customheadtop` | Google Fonts `<link>` for Lexend + Lexend Giga |
+| Insert in HTML <HEAD> bottom | `customhead` | `<script src="https://astrongpresence.com/beds24-iframe-helper-v14.js"></script>` |
+| Custom CSS | `bookingcss` | Critical CSS payload + Chill Zone variable overrides (~1,545 chars) |
+| Insert in HTML <BODY> bottom | `custombody` | Empty |
 
-**External CSS (`CSS-base-v2.css`) handles:**
+### Phase 3 Current State (Session 7)
+
+**External CSS (`CSS-base-v3.css`) handles:**
 - Brand fonts and colors via CSS variables
 - Room card styling (rounded corners, shadows, hover effects)
 - Booking strip styling (hide nights, hide new search, hide multiroom toggle)
@@ -108,23 +118,37 @@ MCP cannot interact with Beds24 (separate platform, no MCP server exists).
 - Hide duplicate room-level and offer-level calendars
 - Hide per-room guest count selectors
 - Hide per-occupancy price breakdown (keep only "from €XX")
+- Hide `.b24-multipricebox.hidden` elements (prevents price row leaking)
+- Hide `#b24bookshoppingcart` bottom summary bar
 - Flex reorder of room card sections (images first, then description, then offer at bottom)
 - Date strip within each room card
 - Responsive mobile layout
+- Orange Book buttons (CTA color)
 
-**Inline `bookingcss` (1,545 chars) handles:**
-- Critical CSS for FOUC prevention (flex layout, min-heights, carousel visibility)
-- CSS variable declarations for Chill Zone brand
-- Font family overrides
+**Helper v14 JS handles:**
+- Hide booking strip/chrome in iframe mode
+- Height sync via postMessage (uses `getBoundingClientRect` on `.b24fullcontainer-rooms`)
+- `form.target = '_top'` for iframe breakout
+- Dorm fix: move guest selector into main price box, relabel "Guests" → "Beds", hide orphan box
+- Per-room orange Book button injection
+- Date strip overrides: green stay dates, light red unavailable dates, non-clickable cells, hidden header row
 
-**Known issues (see session-handoff-5.md for full details):**
-- Booking strip not sticky
-- Bottom Book bar not sticky
-- Dorm has no visible booking mechanism (hidden input, no dropdown)
-- No per-room Book button next to quantity selector
-- Features missing on Suite and Dorm
-- Photo/description side-by-side layout not quite right
-- Booking strip overflows on desktop
+**Widget v6 JS handles:**
+- Date/guest picker with Chill Zone branding
+- "Minimum stay: 2 nights" note
+- Default 1 guest
+- Iframe loading with `opacity:0` (not `display:none`)
+- Height sync via postMessage listener
+- Loading spinner until height > 500px
+- 8-second fallback
+- Summary bar with centered "Clear Search" button below
+- Smooth scroll to results
+
+**Known remaining items:**
+- Price UX: total price after quantity selection, per-night "from" price
+- Room card layout: photo/description side-by-side (Hostelworld target)
+- Features missing on Suite and Dorm (content entry)
+- Accessibility (aria-labels)
 
 ### Critical DOM Knowledge
 
@@ -132,18 +156,26 @@ MCP cannot interact with Beds24 (separate platform, no MCP server exists).
 
 **Beds24 collapses content by default** using `hidden-xs hidden-sm hidden-md hidden-lg` on `#collapseslider{roomId}` and `#collapsedesc{roomId}`. Must override with `display: block !important`.
 
-**Dorm room (567219) renders a hidden input** (`input[type="hidden"][name="sr1-567219"][value="1"]`) instead of a quantity dropdown. This is because of channel manager configuration. Cannot be changed — needs JS-based booking solution.
+**Dorm room (567219) renders a hidden input** (`input[type="hidden"][name="sr1-567219"][value="1"]`) instead of a quantity dropdown. Helper v14 handles this by moving the guest selector and injecting a Book button.
 
-**Beds24 `bookingcss` field silently rejects saves above ~18-19K chars.** Keep all large CSS in the external file.
+**Dorm has two visible `.b24-multipricebox` containers.** Helper moves guest selector from Box 1 (orphan) into Box 0 (main, contains "from" price) and hides Box 1.
 
-**`custombody` and `customheadconfirm` strip `<script>` and `<style>` tags** when saved programmatically via Claude in Chrome. Must be pasted manually.
+**Beds24 "Custom CSS" field silently rejects saves above ~18-19K chars.** Keep all large CSS in the external file.
 
-**Cloudflare caches the external CSS file.** Use versioned filenames (CSS-base-v3.css etc.) to bust cache.
+**"Insert in HTML <BODY> bottom" and confirmation page HEAD fields strip `<script>` and `<style>` tags** when saved programmatically via Claude in Chrome. Must be pasted manually.
+
+**Cloudflare caches the external CSS file.** Use versioned filenames to bust cache.
+
+**Beds24 Style panel generates inline `<style>` blocks** that load after external CSS. For reliable overrides of Style panel colors, inject via helper JS (Section 5).
+
+**`.b24-multipricebox.hidden` elements must be explicitly hidden** with `display: none !important`. Our flex rules on `.b24-offer-select .b24-multipricebox` otherwise override Bootstrap's `.hidden` class.
+
+**Date strip cells are clickable via delegated event handlers.** Block with `pointer-events: none` on `.roomofferpricetable .at_pricetd`.
 
 ## Tool Usage
 - **Claude Code + MCP**: CSS/JS authoring, WordPress content extraction, widget verification
-- **Claude in Chrome**: Beds24 admin interaction (read/write fields), DOM inspection of booking page, visual verification. Navigation between Beds24 admin pages works. Cannot save `<script>`/`<style>` tags programmatically — must be pasted manually.
-- **Manual**: Photo uploads, mobile QA (real iOS device), pasting `<script>`/`<style>` into Beds24 admin fields
+- **Claude in Chrome**: Beds24 admin interaction (read/write fields), DOM inspection, visual verification. Cannot save `<script>`/`<style>` tags programmatically — must be pasted manually.
+- **Manual**: Photo uploads, mobile QA (real iOS device), pasting `<script>`/`<style>` into Beds24 admin fields, VPS file upload via aaPanel
 
 ## VPS Deploy
 - aaPanel access: working (user can access file manager, not terminal/SSH)
@@ -151,8 +183,3 @@ MCP cannot interact with Beds24 (separate platform, no MCP server exists).
 - Public URL pattern: `https://astrongpresence.com/{filename}`
 - Goes through Cloudflare — use versioned filenames for cache busting
 - Final production domain: `tripnhostel.com` (not yet configured for assets)
-
-## Chainlink
-- Use `chainlink session start` at the beginning of every work session
-- Use `chainlink session end --notes "..."` at the end of every session
-- Check `chainlink next` before starting work to confirm current focus

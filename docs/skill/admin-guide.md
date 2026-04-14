@@ -22,24 +22,33 @@ https://beds24.com/control3.php?pagetype={pagetype}&id={propertyOrRoomId}
 
 ## Developer Page Fields
 
-| Field ID | Purpose | Max Size | Tag Stripping? |
-|---|---|---|---|
-| `bookingcss` | Custom CSS | ~18-19K chars (silent fail above) | No |
-| `customheadtop` | HTML `<HEAD>` top injection | Unknown | No |
-| `customhead` | HTML `<HEAD>` bottom injection | Unknown | No — `<script>` and `<style>` tags preserved |
-| `custombodytop` | HTML `<BODY>` top injection | Unknown | Yes (`<script>` stripped on programmatic save) |
-| `custombody` | HTML `<BODY>` bottom injection | ~2,000 chars | Yes (`<script>` stripped on programmatic save) |
-| `customheadconfirm` | Confirmation page `<HEAD>` | Unknown | Yes (`<style>` stripped on programmatic save) |
-| `descriptionmeta` | SEO meta description | Unknown | No |
-| `mapkey` | Google Map API Key | Unknown | No |
+| Beds24 UI Name | Field ID | Purpose | Max Size | Tag Stripping? |
+|---|---|---|---|---|
+| Custom CSS | `bookingcss` | Custom CSS | ~18-19K chars (silent fail above) | No |
+| Insert in HTML <HEAD> top | `customheadtop` | HTML `<HEAD>` top injection | Unknown | No |
+| Insert in HTML <HEAD> bottom | `customhead` | HTML `<HEAD>` bottom injection | Unknown | No — `<script>` and `<style>` tags preserved |
+| Insert in HTML <BODY> top | `custombodytop` | HTML `<BODY>` top injection | Unknown | Yes (`<script>` stripped on programmatic save) |
+| Insert in HTML <BODY> bottom | `custombody` | HTML `<BODY>` bottom injection | ~2,000 chars | Yes (`<script>` stripped on programmatic save) |
+| Confirmation page HEAD | `customheadconfirm` | Confirmation page `<HEAD>` | Unknown | Yes (`<style>` stripped on programmatic save) |
+| Meta description | `descriptionmeta` | SEO meta description | Unknown | No |
+| Google Map API Key | `mapkey` | Google Map API Key | Unknown | No |
 
 ### Tag Stripping Behavior
 
-When saving `custombody` or `customheadconfirm` via Claude in Chrome (setting textarea value + clicking save button), Beds24's server-side handler strips `<script>` and `<style>` tags. Plain text saves fine.
+When saving "Insert in HTML <BODY> bottom" or the confirmation page HEAD field via Claude in Chrome (setting textarea value + clicking save button), Beds24's server-side handler strips `<script>` and `<style>` tags. Plain text saves fine.
 
-**Workaround:** The user must paste the content manually through the Beds24 admin UI in their browser. The UI's save mechanism handles the tags correctly.
+**Workaround:** The user must paste the content manually through the Beds24 admin UI.
 
-This was verified in Session 5: saving "test123" worked, but saving `<script>...</script>` content resulted in empty fields after reload.
+**"Insert in HTML <HEAD> bottom" does NOT strip tags** — this is the preferred field for loading external JS files.
+
+### Style Panel Generates Inline CSS
+
+The 20 color pickers on the Style page generate CSS rules as inline `<style>` blocks in the page `<head>`. These include `.datestay` background colors, button colors, border colors, etc. They:
+- Load after external CSS files (win at equal specificity)
+- Do NOT use `!important`
+- Can be overridden by JS-injected `<style>` tags with `!important` (loads last)
+
+This is why the helper JS injects date strip color overrides via a `<style>` tag rather than relying on the external CSS file alone.
 
 ## Configuration Page Key Settings
 
@@ -60,7 +69,7 @@ This was verified in Session 5: saving "test123" worked, but saving `<script>...
 | `1` (Enabled) | Check In, Check Out, Nights, Book button | Quantity dropdown per room | Per-room |
 | `2` (Guest Can Choose) | Check In, Check Out, Nights, Book Multiple toggle | Depends on toggle state | Depends |
 
-When set to "Enabled": the booking strip Book button is the submit action (not a search). Per-room quantity dropdowns appear. Guest count selectors appear per room. The Book button in the strip and the `.multiplebookbutton` elements are both visible.
+When set to "Enabled": the booking strip Book button is the submit action. Per-room quantity dropdowns appear (except dorm rooms which have hidden inputs). Guest count selectors appear per room. Both the strip Book button and `.multiplebookbutton` elements are visible — but `.multiplebookbutton` only exists in the strip area (2 instances), NOT inside room cards.
 
 ## Layout Page — Module Reference
 
@@ -80,7 +89,7 @@ When set to "Enabled": the booking strip Book button is the submit action (not a
 
 ### Adding a Module
 
-The "add module" dropdown (`roomheaderadd`, `roomfooteradd`, `propheaderadd`, etc.) requires manual UI interaction. Setting the select value and clicking save programmatically does NOT trigger Beds24's add-module handler. The user must do this manually in the admin UI.
+The "add module" dropdown requires manual UI interaction. Setting the select value and clicking save programmatically does NOT trigger Beds24's add-module handler.
 
 ## Style Page Color Fields
 
@@ -97,7 +106,7 @@ The "add module" dropdown (`roomheaderadd`, `roomfooteradd`, `propheaderadd`, et
 | 22 | Font | `fontid` | Limited to: Arial, Courier New, Georgia, etc. |
 | 23 | Font Size | `fontsize` | `6px` to `32px` |
 
-Full list in `beds24-admin-field-map.md`.
+**Note:** The colors set here generate inline `<style>` blocks that affect `.datestay`, button backgrounds, etc. Our helper JS overrides these where needed.
 
 ## Room Features
 
@@ -123,5 +132,3 @@ TV_ROOM
 OUTDOOR_FURNITURE
 DECK_PATIO_UNCOVERED
 ```
-
-Room-specific features (lockers, ensuite, desk, etc.) may need to be entered differently — the "edit amenities" popup on the Features field provides checkboxes for standard amenities.
