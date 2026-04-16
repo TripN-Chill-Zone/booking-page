@@ -31,6 +31,7 @@
 
 /* --- ROOM CARDS --- */
 .b24room { margin-bottom: var(--b24-space-md) !important; }
+.b24room:first-child { margin-top: var(--b24-space-md) !important; }
 
 .b24panel-room {
   background: var(--b24-color-bg-white) !important;
@@ -427,8 +428,16 @@ select[id^="naa"] {
   /* Mobile offer: 2 lines
      Line 1: from €45.00 / night (full width)
      Line 2: Select [- ▼] ——— €90.00 [Book]
+     After qty selection: from-price hides, book-group must stay right-aligned
   */
-  .b24-offer-select .b24-multipricebox { flex-wrap: wrap !important; gap: 8px !important; }
+  .b24-offer-select .multiroomshow { flex-wrap: wrap !important; }
+  .b24-offer-select .multiroomshow > [id^="selectors"] { width: 100% !important; }
+  .b24-offer-select .b24-multipricebox {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
   .b24-offer-select .b24-multipricebox [id^="from-"],
   .b24-offer-select .b24-multipricebox .at_offerfromdiv {
     display: block !important;
