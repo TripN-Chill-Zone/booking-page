@@ -310,6 +310,7 @@ select[id^="naa"] { display: none !important; }
 .at_offername { display: none !important; }
 .offer hr { display: none !important; }
 [id^="price-"][class*="b24-roomprice"] { display: none !important; }
+a[href="#topofthebookingpage"] { display: none !important; }
 
 /* --- UNAVAILABLE ROOM WARNING --- */
 .b24-roomwarn {
@@ -344,6 +345,11 @@ select[id^="naa"] {
    CSS order rearranges to: slider(0) → desc(1, beside thumb) → tags(2) → offer(3)
    ============================================ */
 @media (max-width: 767px) {
+  /* Side margins for room cards on mobile */
+  .b24fullcontainer-rooms .container {
+    padding: 0 12px !important;
+  }
+
   .b24-roompanel-heading { padding: 12px 16px 4px 16px !important; }
   .at_roomnametext { font-size: 15px !important; }
 
