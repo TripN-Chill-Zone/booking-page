@@ -1,0 +1,555 @@
+/* ==========================================================================
+   beds24-base-v4.css — Hostelworld-style compact room cards
+   Property: Trip'N'Hostel Chill Zone (271142)
+   
+   v4: Simplified room cards with thumbnails, icon tags, compact price row
+   ========================================================================== */
+
+/* --- CSS VARIABLES --- */
+:root {
+  --b24-color-primary: #E7A35C;
+  --b24-color-secondary: #6DA17D;
+  --b24-color-text: #2D482D;
+  --b24-color-text-light: #5a6f5a;
+  --b24-color-bg: #F7FAFC;
+  --b24-color-bg-white: #ffffff;
+  --b24-color-border: #EDF2F7;
+  --b24-color-accent-hover: #d4923e;
+  --b24-color-secondary-hover: #5c8e6c;
+  --b24-font-body: 'Lexend', sans-serif;
+  --b24-font-heading: 'Lexend Giga', sans-serif;
+  --b24-font-size-base: 14px;
+  --b24-font-size-sm: 13px;
+  --b24-font-size-lg: 16px;
+  --b24-font-size-xl: 20px;
+  --b24-space-xs: 4px;
+  --b24-space-sm: 8px;
+  --b24-space-md: 16px;
+  --b24-space-lg: 24px;
+  --b24-space-xl: 32px;
+  --b24-space-2xl: 48px;
+  --b24-radius-sm: 6px;
+  --b24-radius-md: 10px;
+  --b24-radius-lg: 16px;
+  --b24-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --b24-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --b24-transition: 0.2s ease;
+}
+
+
+/* --- BASE --- */
+.colorbody {
+  font-family: var(--b24-font-body) !important;
+  color: var(--b24-color-text) !important;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+html { scroll-behavior: smooth; }
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--b24-font-heading) !important;
+  color: var(--b24-color-text) !important;
+}
+
+
+/* --- BOOKING STRIP --- */
+.b24fullcontainer-selector {
+  background: var(--b24-color-bg-white) !important;
+  border-bottom: 1px solid var(--b24-color-border) !important;
+  box-shadow: var(--b24-shadow-sm) !important;
+  margin-bottom: var(--b24-space-xl) !important;
+  position: relative;
+  z-index: 10;
+}
+.b24-bookingstrip {
+  background: var(--b24-color-bg-white) !important;
+  padding: var(--b24-space-md) 0 !important;
+}
+.b24-bookingstrip > .row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-end !important;
+}
+.b24-selector-numnight { display: none !important; }
+.newsearch { display: none !important; }
+#multiroom, .bootstrap-switch-wrapper:has(#multiroom), label[for="multiroom"] { display: none !important; }
+
+.b24-bookingstrip .at_bookingbut {
+  font-family: var(--b24-font-heading) !important;
+  font-size: var(--b24-font-size-base) !important;
+  font-weight: 600 !important;
+  background: var(--b24-color-primary) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-sm) var(--b24-space-xl) !important;
+  cursor: pointer;
+  transition: background var(--b24-transition) !important;
+}
+.b24-bookingstrip .at_bookingbut:hover { background: var(--b24-color-accent-hover) !important; }
+
+#inputcheckin, #inputcheckout {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-sm) var(--b24-space-md) !important;
+  color: var(--b24-color-text) !important;
+  background: var(--b24-color-bg-white) !important;
+  height: auto !important;
+}
+.b24-bookingstrip label, .b24-bookingstrip .form-group label {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  font-weight: 500 !important;
+  color: var(--b24-color-text-light) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--b24-space-xs) !important;
+}
+.b24-bookingstrip .input-group-addon {
+  background: var(--b24-color-bg) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  color: var(--b24-color-text-light) !important;
+}
+
+
+/* --- BUTTONS (generic) --- */
+.btn-primary {
+  font-family: var(--b24-font-heading) !important;
+  font-weight: 600 !important;
+  background: var(--b24-color-primary) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--b24-radius-sm) !important;
+}
+.btn-primary:hover { background: var(--b24-color-accent-hover) !important; }
+.btn-default, .btn-info {
+  font-family: var(--b24-font-body) !important;
+  background: var(--b24-color-bg) !important;
+  color: var(--b24-color-secondary) !important;
+  border: 1px solid var(--b24-color-secondary) !important;
+  border-radius: var(--b24-radius-sm) !important;
+}
+.btn-default:hover, .btn-info:hover {
+  background: var(--b24-color-secondary) !important;
+  color: #ffffff !important;
+}
+
+
+/* ==========================================================================
+   ROOM CARDS — Compact Hostelworld-style
+
+   Desktop:
+   ┌──────────┬──────────────────────────────────────────────────────┬──────┐
+   │  Photo   │ Room Name (heading above)                           │      │
+   │  thumb   │ 🛏 Sleeps 2 · 🚿 Ensuite · 💼 Desk                 │      │
+   │  120px   │ [Qty ▼]  from €45/night · €90 for 2 nights  [Book] │      │
+   └──────────┴──────────────────────────────────────────────────────┴──────┘
+
+   Mobile:
+   ┌────────┬───────────────────────────────┐
+   │  Photo │ Room Name                     │
+   │  thumb │ 🛏 Sleeps 2 · 🚿 Ensuite      │
+   ├────────┴───────────────────────────────┤
+   │ [Qty ▼]  from €45/night        [Book] │
+   └────────────────────────────────────────┘
+   ========================================================================== */
+
+.b24room { margin-bottom: var(--b24-space-md) !important; }
+
+.b24panel-room {
+  background: var(--b24-color-bg-white) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-md) !important;
+  box-shadow: var(--b24-shadow-sm) !important;
+  overflow: hidden;
+  transition: box-shadow var(--b24-transition) !important;
+}
+.b24panel-room:hover { box-shadow: var(--b24-shadow-md) !important; }
+
+/* Room heading: compact */
+.b24-roompanel-heading {
+  font-family: var(--b24-font-heading) !important;
+  font-weight: 600 !important;
+  border: none !important;
+  background: var(--b24-color-bg-white) !important;
+  padding: 12px 16px 0 16px !important;
+  border-bottom: none !important;
+}
+.at_roomnametext {
+  font-family: var(--b24-font-heading) !important;
+  font-size: var(--b24-font-size-lg) !important;
+  font-weight: 700 !important;
+  color: var(--b24-color-text) !important;
+  letter-spacing: -0.01em;
+}
+
+/* Panel body: CSS Grid
+   Column 1 = thumbnail (120px)
+   Column 2 = tags + offer (fills remaining)
+   Row 1 = thumbnail spanning both rows | tags
+   Row 2 = (thumbnail continues)        | offer (price/qty/book) */
+.b24panel-room > .b24panel {
+  display: grid !important;
+  grid-template-columns: 120px 1fr !important;
+  grid-template-rows: auto auto !important;
+  gap: 0 var(--b24-space-md) !important;
+  padding: 12px 16px 16px 16px !important;
+  align-items: start !important;
+}
+
+/* Thumbnail: column 1, spans all rows */
+.b24panel-room > .b24panel > .row:first-of-type {
+  grid-column: 1 !important;
+  grid-row: 1 / -1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Description row (tags go here): column 2, row 1 */
+.b24panel-room > .b24panel > .row:last-of-type {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Offer section (price/qty/book): full width row below thumbnail+tags */
+.b24panel-room > .b24panel > .offer {
+  grid-column: 1 / -1 !important;
+  grid-row: 3 !important;
+  padding: 8px 0 0 0 !important;
+  margin: 8px 0 0 0 !important;
+  border-top: 1px solid var(--b24-color-border) !important;
+}
+
+/* Utility elements: hidden */
+.b24panel-room > .b24panel > .clearfix { display: none !important; }
+.b24panel-room > .b24panel > .hidden { display: none !important; }
+.b24panel-room > .b24panel > script { display: none !important; }
+
+
+/* --- THUMBNAIL --- */
+.b24-room-slider {
+  width: 120px !important;
+  max-width: 120px !important;
+  padding: 0 !important;
+  float: none !important;
+}
+.b24-room-slider .carousel,
+.carousel.slide {
+  border-radius: var(--b24-radius-sm) !important;
+  overflow: hidden !important;
+  max-height: 90px !important;
+  min-height: 90px !important;
+  height: 90px !important;
+  width: 120px !important;
+}
+.carousel .item { display: none; }
+.carousel .item.active { display: block !important; }
+.b24-room-slider .carousel .item.active img,
+[id^="collapseslider"] .carousel .item.active img,
+.carousel img, .carousel .item img {
+  width: 120px !important;
+  height: 90px !important;
+  object-fit: cover !important;
+}
+.carousel-control { display: none !important; }
+.carousel-indicators { display: none !important; }
+
+
+/* --- DESCRIPTION: hide text (replaced by JS-injected tags) --- */
+.b24-room-desc {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  float: none !important;
+}
+[id^="collapsedesc"] { display: block !important; height: auto !important; }
+[id^="collapseslider"] { display: block !important; height: auto !important; }
+
+
+/* --- ROOM TAGS (injected by helper JS) --- */
+.tnh-room-tags {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  margin: 4px 0 6px !important;
+}
+.tnh-tag {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #2D482D !important;
+  background: #f0f5f0 !important;
+  border: 1px solid #d4e0d4 !important;
+  border-radius: 4px !important;
+  padding: 2px 8px !important;
+  white-space: nowrap !important;
+  line-height: 1.4 !important;
+}
+
+
+/* --- OFFER: price row layout ---
+   Desktop: [Qty ▼] [price text] [Book] — single row, spread
+   Mobile: [Qty ▼] [price] [Book] — same row, tighter */
+.b24-offer-select {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  border-top: none !important;
+}
+.b24-offer-select .multiroomshow {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+}
+.b24-offer-select .b24-multipricebox {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  flex: 1 !important;
+}
+.b24-offer-select .form-inline {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--b24-space-sm) !important;
+  flex-shrink: 0 !important;
+}
+
+/* "from" price: inline-block, compact */
+[id^="from-"],
+.b24-multipricebox [id^="from-"],
+.b24-multipricebox .at_offerfromdiv {
+  display: inline-block !important;
+  white-space: nowrap !important;
+  flex-shrink: 1 !important;
+  min-width: 0 !important;
+}
+/* Hide the "€90 for 2 nights" subtitle — saves horizontal space */
+.tnh-price-total-note { display: none !important; }
+.tnh-price-pernight-main { font-size: 13px !important; white-space: nowrap !important; }
+
+/* Book button: right-aligned via margin-left auto */
+.tnh-book-btn {
+  margin-left: auto !important;
+  margin-top: 0 !important;
+  float: none !important;
+  flex-shrink: 0 !important;
+}
+
+/* Keep .hidden price boxes hidden */
+.b24-multipricebox.hidden,
+.b24-offer-select .b24-multipricebox.hidden {
+  display: none !important;
+}
+
+
+/* --- HIDE ELEMENTS --- */
+.b24-offer-pricetable { display: none !important; }
+.roomofferpricetable { display: none !important; }
+.b24-room-106 { display: none !important; }
+.b24-room-cal { display: none !important; }
+.b24-offer-cal { display: none !important; }
+.fakelink { display: none !important; }
+select[id^="naa"] { display: none !important; }
+#b24bookshoppingcart { display: none !important; }
+.at_offername { display: none !important; }
+.offer hr { display: none !important; }
+.roomofferpricetable tr.b24-bookingstrip { display: none !important; }
+[id^="price-"][class*="b24-roomprice"] { display: none !important; }
+
+
+/* --- MULTI-ROOM BOOK BUTTONS (strip) --- */
+.multiplebookbutton { display: block !important; }
+.multiplebookbutton .at_bookingbut {
+  display: inline-block !important;
+  font-size: var(--b24-font-size-base) !important;
+  font-family: var(--b24-font-heading) !important;
+  font-weight: 600 !important;
+  background: var(--b24-color-primary) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-sm) var(--b24-space-xl) !important;
+  cursor: pointer;
+  transition: background var(--b24-transition) !important;
+}
+.multiplebookbutton .at_bookingbut:hover { background: var(--b24-color-accent-hover) !important; }
+
+
+/* --- CALENDAR (property-level) --- */
+.roomoffercalendarmonth { font-family: var(--b24-font-body) !important; font-size: var(--b24-font-size-sm) !important; }
+.monthcalendarhead { font-family: var(--b24-font-heading) !important; font-weight: 600 !important; color: var(--b24-color-text) !important; }
+.datestay { background-color: var(--b24-color-secondary) !important; color: #ffffff !important; font-weight: 500 !important; }
+.dateavail { cursor: pointer; }
+.dateavail:hover { background-color: rgba(109, 161, 125, 0.15) !important; }
+.datenotavail { text-decoration: line-through; background-color: rgba(200, 60, 60, 0.10) !important; color: #a04040 !important; opacity: 0.8; }
+.datepast { opacity: 0.4; }
+
+
+/* --- PRICE DISPLAY --- */
+.roomprice, [id^="roomprice-"] {
+  font-family: var(--b24-font-heading) !important;
+  font-size: var(--b24-font-size-lg) !important;
+  font-weight: 700 !important;
+  color: var(--b24-color-text) !important;
+}
+
+
+/* --- FORM SELECTS --- */
+select[id^="sr1-"], select[id^="naa"] {
+  border: 1.5px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: 4px 8px !important;
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  color: var(--b24-color-text) !important;
+  background: var(--b24-color-bg-white) !important;
+}
+.b24-multipricebox { font-family: var(--b24-font-body) !important; }
+
+
+/* --- PROPERTY CONTENT --- */
+.b24fullcontainer-proprow1, .b24fullcontainer-proprow2 {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  line-height: 1.7;
+  color: var(--b24-color-text) !important;
+}
+.propdesc, .b24-prop-description { max-width: 72ch; }
+
+
+/* --- LANGUAGE & CURRENCY --- */
+.b24languagedropdown .btn, .b24currencydropdown .btn {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  color: var(--b24-color-text-light) !important;
+  background: transparent !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+}
+
+
+/* --- LINKS --- */
+a { color: var(--b24-color-secondary) !important; text-decoration: none !important; }
+a:hover { color: var(--b24-color-secondary-hover) !important; }
+
+
+/* --- POLICIES --- */
+.b24-policy, .b24-cancelpolicy {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-sm) !important;
+  color: var(--b24-color-text-light) !important;
+  line-height: 1.6;
+  padding: var(--b24-space-md) !important;
+  background: var(--b24-color-bg) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  border: 1px solid var(--b24-color-border) !important;
+}
+
+
+/* --- FOOTER --- */
+.b24fullcontainer-footer { font-family: var(--b24-font-body) !important; font-size: var(--b24-font-size-sm) !important; color: var(--b24-color-text-light) !important; }
+
+
+/* --- FORM ELEMENTS (checkout page) --- */
+.form-control {
+  font-family: var(--b24-font-body) !important;
+  font-size: var(--b24-font-size-base) !important;
+  border: 1px solid var(--b24-color-border) !important;
+  border-radius: var(--b24-radius-sm) !important;
+  padding: var(--b24-space-sm) var(--b24-space-md) !important;
+  color: var(--b24-color-text) !important;
+}
+.form-control:focus {
+  border-color: var(--b24-color-primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(231, 163, 92, 0.15) !important;
+}
+
+
+/* --- HIDE/REVEAL (JS-controlled) --- */
+body.b24-rooms-hidden .b24fullcontainer-rooms .b24room {
+  opacity: 0; max-height: 0; overflow: hidden; margin: 0 !important; padding: 0 !important; border: none !important;
+}
+body.b24-rooms-revealed .b24fullcontainer-rooms .b24room { opacity: 1; max-height: 9999px; }
+.b24-select-dates-msg {
+  font-family: var(--b24-font-body);
+  font-size: var(--b24-font-size-lg);
+  color: var(--b24-color-text-light);
+  text-align: center;
+  padding: var(--b24-space-2xl) var(--b24-space-lg);
+}
+
+
+/* --- BORDERS --- */
+.border { border: 1px solid var(--b24-color-border) !important; }
+#multiroom { accent-color: var(--b24-color-primary); }
+
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+@media (max-width: 767px) {
+  .b24-roompanel-heading { padding: 10px 12px 0 12px !important; }
+  .at_roomnametext { font-size: 15px !important; }
+  .b24-bookingstrip { padding: var(--b24-space-sm) 0 !important; }
+  body { overflow-x: hidden !important; }
+
+  /* Smaller grid on mobile */
+  .b24panel-room > .b24panel {
+    grid-template-columns: 90px 1fr !important;
+    grid-template-rows: auto auto !important;
+    padding: 10px 12px 12px 12px !important;
+    gap: 0 10px !important;
+  }
+
+  /* Thumbnail shrinks */
+  .b24-room-slider { width: 90px !important; max-width: 90px !important; }
+  .b24-room-slider .carousel, .carousel.slide {
+    width: 90px !important; height: 68px !important; max-height: 68px !important; min-height: 68px !important;
+  }
+  .b24-room-slider .carousel .item.active img,
+  [id^="collapseslider"] .carousel .item.active img,
+  .carousel img, .carousel .item img {
+    width: 90px !important; height: 68px !important;
+  }
+
+  /* Offer row: full width below thumbnail+tags on mobile */
+  .b24panel-room > .b24panel > .offer {
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    margin-top: 8px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid var(--b24-color-border) !important;
+  }
+
+  /* Price row stays horizontal on mobile */
+  .b24-offer-select .multiroomshow {
+    flex-wrap: nowrap !important;
+    justify-content: space-between !important;
+  }
+
+  .tnh-tag { font-size: 11px !important; padding: 1px 6px !important; }
+}
+
+@media (max-width: 430px) {
+  :root {
+    --b24-font-size-base: 13px;
+    --b24-font-size-xl: 18px;
+    --b24-space-lg: 16px;
+  }
+}
+
+
+/* --- FONT OVERRIDES --- */
+.colorbody { font-family: 'Lexend', sans-serif !important; }
+h1, h2, h3, h4, h5, h6, .at_roomnametext, .b24-roompanel-heading, .monthcalendarhead {
+  font-family: 'Lexend Giga', sans-serif !important;
+}
