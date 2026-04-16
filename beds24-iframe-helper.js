@@ -1,7 +1,7 @@
 /*
  * TNH Beds24 Iframe Helper
- * Stable filename — cache-busted by bootstrapper in customhead field.
- * Just overwrite this file on VPS to deploy changes.
+ * Stable filename — deployed via GitHub Actions CI/CD.
+ * Loaded via Date.now() bootstrapper in Beds24 customhead field.
  *
  * Session 10 updates:
  * - Viewport clamp for iOS Safari iframe: html/body overflow-x constraint

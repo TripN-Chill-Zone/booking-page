@@ -1,8 +1,8 @@
 /* ==========================================================================
    CSS-base.css
    Beds24 Booking Page — External Stylesheet
-   Stable filename — cache-busted via ?v=timestamp in widget.
-   Just overwrite this file on VPS to deploy changes.
+   Property: Trip'N'Hostel Chill Zone (271142)
+   Stable filename — deployed via GitHub Actions CI/CD.
    ========================================================================== */
 
 :root{--b24-color-primary:#E7A35C;--b24-color-secondary:#6DA17D;--b24-color-text:#2D482D;--b24-color-text-light:#5a6f5a;--b24-color-bg:#F7FAFC;--b24-color-bg-white:#ffffff;--b24-color-border:#EDF2F7;--b24-color-accent-hover:#d4923e;--b24-font-body:'Lexend',sans-serif;--b24-font-heading:'Lexend Giga',sans-serif;--b24-font-size-base:14px;--b24-font-size-sm:13px;--b24-font-size-lg:16px;--b24-radius-sm:6px;--b24-radius-md:10px;--b24-shadow-sm:0 1px 3px rgba(0,0,0,0.08);--b24-shadow-md:0 4px 12px rgba(0,0,0,0.08);--b24-transition:0.2s ease;--b24-space-sm:8px;--b24-space-md:16px}
