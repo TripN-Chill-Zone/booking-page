@@ -31,6 +31,22 @@
   - Remaining: offer bar rebuild, checkout page styling, confirmation page, accessibility
 - Phase 4 (mobile QA) — NOT STARTED
 
+## First-Session Setup
+
+The filesystem resets between sessions. At the start of each new session:
+
+1. **Get the GitHub PAT from the user** — ask for it, don't assume you have it
+2. **Clone the repo with push access:**
+   ```bash
+   git clone https://PASTE_PAT_HERE@github.com/TripN-Chill-Zone/booking-page.git /home/claude/booking-page
+   cd /home/claude/booking-page
+   git config user.email "claude@anthropic.com"
+   git config user.name "Claude"
+   ```
+3. **Verify CI/CD works** — make a trivial change, push, and confirm GitHub Actions deploys
+
+The PAT is a fine-grained token scoped to `TripN-Chill-Zone/booking-page` with Contents + Metadata + Workflows read/write. Do NOT store the token in any committed file.
+
 ## Project Conventions
 
 - American spelling throughout
