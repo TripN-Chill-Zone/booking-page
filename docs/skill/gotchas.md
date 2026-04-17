@@ -1,6 +1,6 @@
 # Beds24 Booking Page — Known Gotchas
 
-Hard-won lessons from Sessions 5-7. Read this before making changes.
+Hard-won lessons from Sessions 5-10. Read this before making changes.
 
 ## CSS Field Limits
 
@@ -26,15 +26,17 @@ Unlike the BODY and confirmation fields, "Insert in HTML <HEAD> bottom" preserve
 
 The external CSS/JS files are served through Cloudflare. Cloudflare caches static assets aggressively.
 
-**Solution:** Use versioned filenames (`CSS-base-v1.css`, `CSS-base-v2.css`, etc.) for every update. Cloudflare development mode bypasses cache but eventually expires.
+**Solution:** The widget and Beds24 bootstrapper both append `?v=Date.now()` to file URLs, bypassing Cloudflare cache on every load. This is intentional for the dev phase. For production, consider using a fixed version query param that only changes on deploy.
+
+**Note:** When loading the Beds24 page directly (not via widget), the `&cssfile=` parameter has no cache-busting suffix. Cloudflare may serve a stale version. Append `?v=XXXXX` manually to the URL for testing.
 
 ## Cloudflare / LiteSpeed Cache 404 Responses
 
 If a file URL is requested before the file is uploaded, the 404 response gets cached. Even after uploading, subsequent requests may return the cached 404.
 
 **Solutions:**
-- Use versioned filenames (already the convention)
-- Purge cache after uploading new files
+- With CI/CD and stable filenames, this is less likely (files are overwritten, not created fresh)
+- If it happens: purge Cloudflare cache or append a unique query param
 - Never request a URL before the file exists at that path
 
 ## Collapsed Content Wrappers
@@ -146,13 +148,13 @@ Setting `body.style.height` to a calculated value risks content clipping and cre
 
 ## WordPress Custom HTML Block: Don't Lose the Div
 
-The Custom HTML block must contain both the container div AND the script tag:
+The Custom HTML block must contain both the container div AND the bootstrapper script:
 ```html
 <div id="tnh-booking-root"></div>
-<script src="https://astrongpresence.com/booking-widget-v6.js"></script>
+<script>var s=document.createElement('script');s.src='https://astrongpresence.com/booking-widget.js?v='+Date.now();document.head.appendChild(s);</script>
 ```
 
-When editing to update the script URL, verify both lines are present after saving.
+When editing, verify both lines are present after saving. The bootstrapper uses `Date.now()` for cache busting — the URL never needs updating.
 
 ## WordPress Caching Serves Stale Widget
 

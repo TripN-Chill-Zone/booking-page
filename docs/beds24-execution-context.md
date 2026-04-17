@@ -2,6 +2,8 @@
 
 This document records the architectural decisions, rationale, and project history for handoff between sessions or team members. The execution plan is the separate document — defer to it for what to do. This document explains why.
 
+> **Session 10 update:** Deployment model changed from versioned filenames + manual aaPanel upload to stable filenames + GitHub Actions CI/CD. References to `v{N}` filenames throughout this document reflect the historical convention. Current deployment uses stable filenames (`CSS-base.css`, `beds24-iframe-helper.js`, `booking-widget.js`) with `Date.now()` cache busting. See `docs/session-handoff-10.md` for current state.
+
 ---
 
 ## Decisions That Are Final

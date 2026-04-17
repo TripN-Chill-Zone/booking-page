@@ -14,7 +14,7 @@
 - [ ] Brand colors and font confirmed (or "match existing site" instruction given)
 - [ ] Photos prepared and ready for manual upload
 - [ ] Property name, room types, and room counts confirmed
-- [ ] VPS access (aaPanel file manager) for uploading JS/CSS files
+- [ ] GitHub repo access (`https://github.com/TripN-Chill-Zone/booking-page`)
 - [ ] WordPress admin access for the property site
 
 ---
@@ -24,12 +24,12 @@
 | Task | Tool |
 |---|---|
 | CSS/JS authoring | Claude (chat or Claude Code CLI) |
+| Deployment | GitHub Actions CI/CD — push to `main` auto-deploys to VPS |
 | Content sourcing (read from existing WP sites) | Claude in Chrome |
 | Beds24 admin configuration (most fields) | Claude in Chrome |
 | Beds24 `customhead` field (external JS loading) | Claude in Chrome — tags NOT stripped |
 | Beds24 `custombody`/`customheadconfirm` fields | Manual paste by user — Beds24 strips `<script>`/`<style>` tags on programmatic save |
-| WordPress page editing | User (Custom HTML block) |
-| VPS file upload | User via aaPanel file manager |
+| WordPress page editing | User (one-time setup with Date.now() bootstrapper) |
 | **File accessibility verification** | **Claude in Chrome — navigate to URL, confirm 200** |
 | Photo uploads | Manual |
 | Mobile QA | Manual (real iOS device) |
