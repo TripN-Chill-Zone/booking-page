@@ -252,7 +252,19 @@
       });
 
       group.appendChild(btn);
-      priceBox.appendChild(group);
+
+      /* Create .tnh-offer-row: wraps [form-inline] and [book-group] as a single flex row */
+      var offerRow = priceBox.querySelector('.tnh-offer-row');
+      if (!offerRow) {
+        offerRow = document.createElement('div');
+        offerRow.className = 'tnh-offer-row';
+        var formInline = priceBox.querySelector('.form-inline');
+        if (formInline) {
+          priceBox.insertBefore(offerRow, formInline);
+          offerRow.appendChild(formInline);
+        }
+      }
+      offerRow.appendChild(group);
     });
   }
 

@@ -277,6 +277,14 @@
   color: var(--b24-color-text-light) !important;
 }
 
+/* Select + Book row — explicit flex container for alignment */
+.tnh-offer-row {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 8px !important;
+}
+
 /* Total price + Book button group (right-aligned) */
 .tnh-book-group {
   display: flex !important;
@@ -429,39 +437,26 @@ select[id^="naa"] {
   .b24-offer-select { width: 100% !important; }
 
   /* Mobile offer: 2 lines
-     Line 1: from €45.00 / night (full width)
-     Line 2: Select [- ▼] ——— €90.00 [Book]
+     Line 1: from €45.00 / night (full width, inside multipricebox)
+     Line 2: .tnh-offer-row handles Select [- ▼] ——— €90.00 [Book]
   */
   .b24-offer-select .multiroomshow { flex-wrap: wrap !important; width: 100% !important; }
   .b24-offer-select .multiroomshow > [id^="selectors"] { width: 100% !important; }
   .b24-offer-select .b24-multipricebox {
-    flex-wrap: wrap !important;
-    gap: 8px !important;
+    display: block !important;
     width: 100% !important;
   }
-  /* From-price: full width forces line break after it */
+  /* From-price: block level, always visible */
   .b24-offer-select .b24-multipricebox [id^="from-"],
   .b24-offer-select .b24-multipricebox .at_offerfromdiv {
-    flex-basis: 100% !important;
+    display: block !important;
     width: 100% !important;
-    order: -1 !important;
-    margin-bottom: 4px !important;
+    margin-bottom: 8px !important;
     text-align: left !important;
   }
   .tnh-price-pernight-main { font-size: 12px !important; }
-  /* Second line: form-inline left, book-group right */
-  .b24-offer-select .form-inline {
-    order: 0 !important;
-    flex-shrink: 0 !important;
-  }
-  .tnh-book-group {
-    order: 1 !important;
-    margin-left: auto !important;
-    flex-shrink: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
-  }
+  /* Offer row: flex handles Select left, Book right */
+  .tnh-offer-row { width: 100% !important; }
 
   .tnh-tag { font-size: 11px !important; padding: 1px 6px !important; }
   .tnh-total-price { font-size: 14px !important; }
