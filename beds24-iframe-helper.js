@@ -453,22 +453,19 @@
    * ============================================ */
   function sortRooms() {
     if (!getIsRoomSearch()) return;
-    var container = document.querySelector('.b24fullcontainer-rooms .container');
-    if (!container) return;
 
-    /* Make container a flex column so CSS order works */
-    container.style.setProperty('display', 'flex', 'important');
-    container.style.setProperty('flex-direction', 'column', 'important');
+    var rooms = document.querySelectorAll('.b24room');
+    if (rooms.length < 2) return;
 
-    /* Room wrappers are div#ajaxroomoffer{roomId}, direct children of container */
-    var wrappers = container.querySelectorAll('[id^="ajaxroomoffer"]');
-    if (wrappers.length < 2) return;
+    /* All rooms may share the same parent (Beds24 AJAX loads into one wrapper) */
+    var parent = rooms[0].parentElement;
+    if (!parent) return;
+
+    /* Only sort once per page load — mark parent when done */
+    if (parent.dataset.tnhSorted === 'true') return;
 
     var sortable = [];
-    wrappers.forEach(function(wrapper) {
-      var room = wrapper.querySelector('.b24room');
-      if (!room) return;
-
+    rooms.forEach(function(room) {
       var offer = room.querySelector('.offer');
       var price = 999999;
 
@@ -495,8 +492,12 @@
         if (warnDiv && !warnDiv.classList.contains('hidden')) unavailable = true;
       }
 
-      sortable.push({ el: wrapper, price: price, unavailable: unavailable });
+      sortable.push({ el: room, price: price, unavailable: unavailable });
     });
+
+    /* Only sort if we got valid prices (not all 999999) */
+    var validPrices = sortable.filter(function(s) { return s.price < 999999; });
+    if (validPrices.length === 0) return;
 
     /* Sort: available by price asc, then unavailable by price asc */
     sortable.sort(function(a, b) {
@@ -504,16 +505,12 @@
       return a.price - b.price;
     });
 
-    /* Apply CSS order values */
-    sortable.forEach(function(item, i) {
-      item.el.style.setProperty('order', i + 1, 'important');
+    /* DOM reorder — appendChild moves elements, doesn't clone */
+    sortable.forEach(function(item) {
+      parent.appendChild(item.el);
     });
 
-    /* Push #notavailableforselection to the end */
-    var notAvail = container.querySelector('#notavailableforselection');
-    if (notAvail) {
-      notAvail.style.setProperty('order', sortable.length + 10, 'important');
-    }
+    parent.dataset.tnhSorted = 'true';
   }
 
   /* ============================================
