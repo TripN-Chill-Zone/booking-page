@@ -3,13 +3,11 @@
    Beds24 Booking Page — External Stylesheet
    Property: Trip'N'Hostel Chill Zone (271142)
    Stable filename — deployed via GitHub Actions CI/CD.
+   Session 11: Offer bar rebuild — new .tnh-offer-bar rules
    ========================================================================== */
 
 :root{--b24-color-primary:#E7A35C;--b24-color-secondary:#6DA17D;--b24-color-text:#2D482D;--b24-color-text-light:#5a6f5a;--b24-color-bg:#F7FAFC;--b24-color-bg-white:#ffffff;--b24-color-border:#EDF2F7;--b24-color-accent-hover:#d4923e;--b24-font-body:'Lexend',sans-serif;--b24-font-heading:'Lexend Giga',sans-serif;--b24-font-size-base:14px;--b24-font-size-sm:13px;--b24-font-size-lg:16px;--b24-radius-sm:6px;--b24-radius-md:10px;--b24-shadow-sm:0 1px 3px rgba(0,0,0,0.08);--b24-shadow-md:0 4px 12px rgba(0,0,0,0.08);--b24-transition:0.2s ease;--b24-space-sm:8px;--b24-space-md:16px}
-
-
 /* --- BASE --- */
-/* Prevent Bootstrap .container fixed widths from expanding iOS Safari iframe viewport */
 .container {
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -20,19 +18,14 @@
   line-height: 1.6;
   background: var(--b24-color-bg) !important;
 }
-
-/* Force .container to not impose its own max-width */
 .b24fullcontainer-rooms .container {
   width: 100% !important;
   max-width: 100% !important;
   padding: 0 !important;
 }
-
-
 /* --- ROOM CARDS --- */
 .b24room { margin-bottom: var(--b24-space-md) !important; }
 .b24room:first-child { margin-top: var(--b24-space-md) !important; }
-
 .b24panel-room {
   background: var(--b24-color-bg-white) !important;
   border: 1px solid var(--b24-color-border) !important;
@@ -41,7 +34,6 @@
   overflow: hidden;
 }
 .b24panel-room:hover { box-shadow: var(--b24-shadow-md) !important; }
-
 .b24-roompanel-heading {
   font-family: var(--b24-font-heading) !important;
   font-weight: 600 !important;
@@ -56,9 +48,7 @@
   font-weight: 700 !important;
   color: var(--b24-color-text) !important;
 }
-
-
-/* --- BOOTSTRAP RESET (global inside panel body, including nested rows in .offer) --- */
+/* --- BOOTSTRAP RESET --- */
 .b24panel-room .b24panel .row {
   margin-left: 0 !important;
   margin-right: 0 !important;
@@ -70,13 +60,7 @@
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
-
-
-/* --- DESKTOP GRID ---
-   Row 1: [thumbnail 120px col1] [desc+tags 1fr col2]
-   Row 2: (reserved for mobile tags)
-   Row 3: [offer full-width]
-*/
+/* --- DESKTOP GRID --- */
 .b24panel-room > .b24panel {
   display: grid !important;
   grid-template-columns: 120px 1fr !important;
@@ -84,16 +68,12 @@
   padding: 8px 16px 12px 16px !important;
   align-items: stretch !important;
 }
-
-/* Slider row → col 1, row 1 (thumbnail) */
 .b24panel-room > .b24panel > .row:has(.b24-room-slider) {
   grid-column: 1 !important;
   grid-row: 1 !important;
   margin: 0 !important;
   padding: 0 !important;
 }
-
-/* Description row → col 2, row 1 (desc text + tags) */
 .b24panel-room > .b24panel > .row:has(.b24-room-desc) {
   grid-column: 2 !important;
   grid-row: 1 !important;
@@ -103,8 +83,6 @@
   flex-direction: column !important;
   justify-content: space-between !important;
 }
-
-/* Offer → full width, row 3 */
 .b24panel-room > .b24panel > .offer {
   grid-column: 1 / -1 !important;
   grid-row: 3 !important;
@@ -112,15 +90,9 @@
   margin: 8px 0 0 0 !important;
   border-top: 1px solid var(--b24-color-border) !important;
 }
-
-/* Hide utility elements */
 .b24panel-room > .b24panel > .clearfix { display: none !important; }
-
-/* Desktop: hide mobile tags */
 .tnh-room-tags-mobile { display: none !important; }
-
-
-/* --- DESCRIPTION TEXT (shown, truncated to 2 lines on desktop) --- */
+/* --- DESCRIPTION TEXT --- */
 .tnh-desc-text {
   font-size: 13px !important;
   color: var(--b24-color-text-light) !important;
@@ -132,10 +104,7 @@
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
-
-
 /* --- THUMBNAIL --- */
-/* Specificity must beat .b24panel-room .b24panel [class*="col-"] (0,2,1) */
 .b24panel-room .b24panel .b24-room-slider {
   width: 120px !important;
   max-width: 120px !important;
@@ -162,10 +131,7 @@
 }
 .carousel-control { display: none !important; }
 .carousel-indicators { display: none !important; }
-
-
 /* --- DESCRIPTION MODULE --- */
-/* Specificity must beat bootstrap reset */
 .b24panel-room .b24panel .b24-room-desc {
   width: 100% !important;
   max-width: 100% !important;
@@ -178,8 +144,6 @@
 }
 [id^="collapsedesc"] { display: block !important; height: auto !important; }
 [id^="collapseslider"] { display: block !important; height: auto !important; }
-
-
 /* --- ROOM TAGS --- */
 .tnh-room-tags {
   display: flex !important;
@@ -201,97 +165,50 @@
   white-space: nowrap !important;
   line-height: 1.4 !important;
 }
-
-
-/* --- OFFER ROW ---
-   Desktop: [Select] [- ▼] [from €45/night] ——— [€90.00] [Book]
+/* --- OFFER BAR (rebuilt) ---
+   Hides original Beds24 offer-select, shows our .tnh-offer-bar
+   Desktop: [from €XX / night] [Select] [- ▼] ——— [€XX.XX] [Book]
 */
 .b24-offer-pricetable { display: none !important; }
+.b24-offer-select { display: none !important; }
 .offer > .row {
   display: block !important;
   width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
 }
-.b24-offer-select {
+
+.tnh-offer-bar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
   width: 100% !important;
-  max-width: 100% !important;
-  padding: 0 !important;
-  border-top: none !important;
+  min-height: 36px !important;
 }
-.b24-offer-select .multiroomshow {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  flex-wrap: nowrap !important;
-  width: 100% !important;
-}
-/* Live DOM has div#selectors1-{roomId} between .multiroomshow and .b24-multipricebox */
-.b24-offer-select .multiroomshow > [id^="selectors"] {
-  display: flex !important;
-  align-items: center !important;
-  flex: 1 !important;
-  width: 100% !important;
-  min-width: 0 !important;
-}
-/* Respect Beds24's .hidden on selectors wrapper for unavailable rooms */
-.b24-offer-select .multiroomshow > [id^="selectors"].hidden {
-  display: none !important;
-}
-.b24-offer-select .b24-multipricebox {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  flex-wrap: nowrap !important;
-  flex: 1 !important;
-}
-.b24-offer-select .form-inline {
-  display: flex !important;
-  align-items: center !important;
-  gap: var(--b24-space-sm) !important;
+.tnh-offer-price {
+  font-size: var(--b24-font-size-sm) !important;
+  font-weight: 500 !important;
+  color: var(--b24-color-text-light) !important;
+  white-space: nowrap !important;
   flex-shrink: 0 !important;
 }
-/* "Select" label — hidden by Beds24 in multi-room mode, restore it */
-.roomofferqtyselectlabel {
-  display: inline-block !important;
+.tnh-offer-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-left: auto !important;
+  flex-shrink: 0 !important;
+}
+.tnh-offer-label {
   font-size: var(--b24-font-size-sm) !important;
   font-weight: 500 !important;
   color: var(--b24-color-text-light) !important;
   white-space: nowrap !important;
 }
-
-/* Per-night price */
-[id^="from-"],
-.b24-multipricebox [id^="from-"],
-.b24-multipricebox .at_offerfromdiv {
-  display: inline-block !important;
-  white-space: nowrap !important;
-  flex-shrink: 1 !important;
-  min-width: 0 !important;
-  text-align: left !important;
-}
-.tnh-price-pernight-main {
-  font-size: 13px !important;
-  white-space: nowrap !important;
-  font-weight: 500 !important;
-  color: var(--b24-color-text-light) !important;
-}
-
-/* Select + Book row — explicit flex container for alignment */
-.tnh-offer-row {
-  display: flex !important;
+.tnh-dorm-select-wrapper {
+  display: inline-flex !important;
   align-items: center !important;
-  width: 100% !important;
-  gap: 8px !important;
-}
-
-/* Total price + Book button group (right-aligned) */
-.tnh-book-group {
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  margin-left: auto !important;
-  flex-shrink: 0 !important;
+  gap: 4px !important;
 }
 .tnh-total-price {
   font-size: 15px !important;
@@ -300,40 +217,50 @@
   white-space: nowrap !important;
 }
 .tnh-book-btn {
-  margin-top: 0 !important;
-  float: none !important;
+  display: inline-block !important;
+  padding: 8px 24px !important;
+  font-family: inherit !important;
+  font-size: var(--b24-font-size-base) !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: var(--b24-color-primary) !important;
+  border: none !important;
+  border-radius: var(--b24-radius-sm) !important;
+  cursor: pointer !important;
+  transition: background var(--b24-transition) !important;
   flex-shrink: 0 !important;
 }
+.tnh-book-btn:hover { background: var(--b24-color-accent-hover) !important; }
 
-/* Hidden price boxes */
-.b24-multipricebox.hidden,
-.b24-offer-select .b24-multipricebox.hidden {
-  display: none !important;
+/* Moved pricebox inside our bar — flex row, hide from-div (we display price separately) */
+.tnh-offer-controls .b24-multipricebox {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
 }
+.tnh-offer-controls .b24-multipricebox [id^="from-"] { display: none !important; }
+.tnh-offer-controls .b24-multipricebox .form-inline {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--b24-space-sm) !important;
+}
+/* Hide Beds24's "Select" label inside moved pricebox (we have our own .tnh-offer-label) */
+.tnh-offer-controls .roomofferqtyselectlabel { display: none !important; }
 
+/* Hidden price boxes — prevent per-occupancy leakage */
+.b24-multipricebox.hidden { display: none !important; }
 
-/* --- HIDE ELEMENTS --- */
-.b24-room-106 { display: none !important; }
-.fakelink { display: none !important; }
-select[id^="naa"] { display: none !important; }
-.at_offername { display: none !important; }
-.offer hr { display: none !important; }
-[id^="price-"][class*="b24-roomprice"] { display: none !important; }
-a[href="#topofthebookingpage"] { display: none !important; }
-
-/* --- UNAVAILABLE ROOM WARNING --- */
-.b24-roomwarn {
+/* Unavailable state */
+.tnh-unavailable {
   font-size: var(--b24-font-size-sm) !important;
   color: #a04040 !important;
   background: rgba(200, 60, 60, 0.08) !important;
   border: 1px solid rgba(200, 60, 60, 0.2) !important;
   border-radius: var(--b24-radius-sm) !important;
   padding: 6px 12px !important;
-  margin: 4px 0 !important;
   text-align: center !important;
+  width: 100% !important;
 }
-
-
 /* --- FORM SELECTS --- */
 select[id^="sr1-"],
 select[id^="naa"] {
@@ -345,31 +272,34 @@ select[id^="naa"] {
   color: var(--b24-color-text) !important;
   background: var(--b24-color-bg-white) !important;
 }
-
-
+/* Dorm guest select must be visible when moved into our bar */
+.tnh-offer-controls select[id^="naa"] {
+  display: inline-block !important;
+  visibility: visible !important;
+}
+/* --- HIDE ELEMENTS --- */
+.b24-room-106 { display: none !important; }
+.fakelink { display: none !important; }
+select[id^="naa"] { display: none !important; }
+.at_offername { display: none !important; }
+.offer hr { display: none !important; }
+[id^="price-"][class*="b24-roomprice"] { display: none !important; }
+a[href="#topofthebookingpage"] { display: none !important; }
 /* ============================================
-   MOBILE (≤767px)
-   Switch from grid to flex column.
-   DOM order: offer, slider row, clearfix, desc row, clearfix, mobile tags
-   CSS order rearranges to: slider(0) → desc(1, beside thumb) → tags(2) → offer(3)
+   MOBILE (<=767px)
    ============================================ */
 @media (max-width: 767px) {
-  /* Side margins for room cards on mobile */
-  .b24fullcontainer-rooms .container {
-    padding: 0 12px !important;
-  }
-
+  .b24fullcontainer-rooms .container { padding: 0 12px !important; }
   .b24-roompanel-heading { padding: 12px 16px 4px 16px !important; }
   .at_roomnametext { font-size: 15px !important; }
 
-  /* Flex column layout */
   .b24panel-room > .b24panel {
     display: flex !important;
     flex-direction: column !important;
     padding: 12px 16px 16px 16px !important;
   }
 
-  /* Thumbnail: smaller — specificity must beat bootstrap reset */
+  /* Thumbnail */
   .b24panel-room .b24panel .b24-room-slider { width: 90px !important; max-width: 90px !important; }
   .b24-room-slider .carousel,
   .carousel.slide {
@@ -385,37 +315,20 @@ select[id^="naa"] {
     height: 68px !important;
   }
 
-  /* Slider row: order 0 */
-  .b24panel-room > .b24panel > .row:has(.b24-room-slider) {
-    order: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  /* Desc row: order 1, positioned beside thumbnail via negative margin */
+  /* Ordering */
+  .b24panel-room > .b24panel > .row:has(.b24-room-slider) { order: 0 !important; margin: 0 !important; padding: 0 !important; }
   .b24panel-room > .b24panel > .row:has(.b24-room-desc) {
     order: 1 !important;
     margin: -78px 0 0 100px !important;
     padding: 0 !important;
     display: block !important;
   }
-  .b24panel-room .b24panel .b24-room-desc {
-    height: auto !important;
-    justify-content: flex-start !important;
-  }
-  .tnh-desc-text {
-    -webkit-line-clamp: unset !important;
-    display: block !important;
-    font-size: 12px !important;
-    margin: 0 !important;
-  }
-  /* Hide desktop tags on mobile */
+  .b24panel-room .b24panel .b24-room-desc { height: auto !important; justify-content: flex-start !important; }
+  .tnh-desc-text { -webkit-line-clamp: unset !important; display: block !important; font-size: 12px !important; margin: 0 !important; }
   .b24-room-desc .tnh-room-tags { display: none !important; }
-
-  /* Clearfix: hidden */
   .b24panel-room > .b24panel > .clearfix { display: none !important; }
 
-  /* Mobile tags: full width, order 2 */
+  /* Mobile tags */
   .tnh-room-tags-mobile {
     display: flex !important;
     flex-wrap: wrap !important;
@@ -425,7 +338,7 @@ select[id^="naa"] {
     margin: 10px 0 0 0 !important;
   }
 
-  /* Offer: order 3, bottom of card */
+  /* Offer at bottom */
   .b24panel-room > .b24panel > .offer {
     order: 3 !important;
     padding: 10px 0 0 0 !important;
@@ -433,36 +346,23 @@ select[id^="naa"] {
     border-top: 1px solid var(--b24-color-border) !important;
     width: 100% !important;
   }
-  .offer > .row { width: 100% !important; }
-  .b24-offer-select { width: 100% !important; }
 
-  /* Mobile offer: 2 lines
-     Line 1: from €45.00 / night (full width, inside multipricebox)
-     Line 2: .tnh-offer-row handles Select [- ▼] ——— €90.00 [Book]
-  */
-  .b24-offer-select .multiroomshow { flex-wrap: wrap !important; width: 100% !important; }
-  .b24-offer-select .multiroomshow > [id^="selectors"] { width: 100% !important; }
-  .b24-offer-select .b24-multipricebox {
-    display: block !important;
-    width: 100% !important;
+  /* Mobile offer bar: stack price on top, controls below */
+  .tnh-offer-bar {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
   }
-  /* From-price: block level, always visible */
-  .b24-offer-select .b24-multipricebox [id^="from-"],
-  .b24-offer-select .b24-multipricebox .at_offerfromdiv {
-    display: block !important;
+  .tnh-offer-price {
     width: 100% !important;
-    margin-bottom: 8px !important;
-    text-align: left !important;
+    font-size: 12px !important;
   }
-  .tnh-price-pernight-main { font-size: 12px !important; }
-  /* Offer row: flex handles Select left, Book right */
-  .tnh-offer-row { width: 100% !important; }
-
-  .tnh-tag { font-size: 11px !important; padding: 1px 6px !important; }
+  .tnh-offer-controls {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
   .tnh-total-price { font-size: 14px !important; }
+  .tnh-tag { font-size: 11px !important; padding: 1px 6px !important; }
 }
-
-
 /* --- FONT OVERRIDES --- */
 .colorbody { font-family: 'Lexend', sans-serif !important; }
 h1, h2, h3, h4, h5, h6,
