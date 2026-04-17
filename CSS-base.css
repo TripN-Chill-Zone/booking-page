@@ -87,8 +87,6 @@
   grid-row: 1 !important;
   margin: 0 !important;
   padding: 0 !important;
-  overflow: hidden !important;
-  max-width: 120px !important;
 }
 .b24panel-room > .b24panel > .row:has(.b24-room-desc) {
   grid-column: 2 !important;
