@@ -76,6 +76,11 @@
     if (isNaN(d)) return { valid: false };
     var total = d + c / 100;
     var cur = (f.querySelector('.bookingpagecurrency') || {}).textContent || '\u20AC';
+    /* Cache the base total for readLiveTotal to use */
+    if (!f.dataset.tnhBaseTotal) {
+      f.dataset.tnhBaseTotal = total.toFixed(2);
+      f.dataset.tnhBaseCurrency = cur;
+    }
     var nEl = document.querySelector('#inputnumnight');
     var n = nEl ? parseInt(nEl.value, 10) : 1;
     if (!n || n < 1) n = 1;
@@ -83,14 +88,36 @@
   }
 
   function readLiveTotal(offer) {
+    /* Compute total: base total × qty selected */
     var f = offer.querySelector('[id^="from-1-"]');
     if (!f) return null;
-    var ds = f.querySelector('.bookingpagedollars'), cs = f.querySelector('.bookingpagecents');
-    if (!ds || !cs) return null;
-    var d = parseInt(ds.textContent, 10), c = parseInt(cs.textContent.replace('.',''), 10) || 0;
-    if (isNaN(d)) return null;
-    var cur = (f.querySelector('.bookingpagecurrency') || {}).textContent || '\u20AC';
-    return { total: d + c / 100, currency: cur };
+    /* Use cached base total if available, otherwise read from spans */
+    var baseTotal, cur;
+    if (f.dataset.tnhBaseTotal) {
+      baseTotal = parseFloat(f.dataset.tnhBaseTotal);
+      cur = f.dataset.tnhBaseCurrency || '\u20AC';
+    } else {
+      var ds = f.querySelector('.bookingpagedollars'), cs = f.querySelector('.bookingpagecents');
+      if (!ds || !cs) return null;
+      var d = parseInt(ds.textContent, 10), c = parseInt(cs.textContent.replace('.',''), 10) || 0;
+      if (isNaN(d)) return null;
+      baseTotal = d + c / 100;
+      cur = (f.querySelector('.bookingpagecurrency') || {}).textContent || '\u20AC';
+      f.dataset.tnhBaseTotal = baseTotal.toFixed(2);
+      f.dataset.tnhBaseCurrency = cur;
+    }
+    if (isNaN(baseTotal)) return null;
+    /* Read qty from the select */
+    var qs = offer.querySelector('select[id^="sr1-"]');
+    var qty = qs ? parseInt(qs.value, 10) : 1;
+    if (!qty || qty < 1) qty = 1;
+    /* For dorms, read from guest select instead */
+    if (offer.querySelector('input[type="hidden"][name^="sr1-"]')) {
+      var gs = offer.querySelector('select[id^="naa"]');
+      qty = gs ? parseInt(gs.value, 10) : 1;
+      if (!qty || qty < 1) qty = 1;
+    }
+    return { total: baseTotal * qty, currency: cur };
   }
 
   function isDormOffer(offer) {
@@ -283,7 +310,7 @@
     '567218': [{icon:'\uD83D\uDECF',text:'Sleeps 2'},{icon:'\uD83D\uDEBF',text:'Ensuite'},{icon:'\uD83C\uDFD9',text:'City View'},{icon:'\uD83D\uDCBC',text:'Work Desk'},{icon:'\uD83D\uDC51',text:'Premium'}],
     '567220': [{icon:'\uD83D\uDECF',text:'Sleeps 1'},{icon:'\uD83D\uDEBF',text:'Shared Bathroom'},{icon:'\uD83D\uDCBC',text:'Work Desk'},{icon:'\uD83D\uDD12',text:'Private'}],
     '567221': [{icon:'\uD83D\uDECF',text:'Sleeps 2'},{icon:'\uD83D\uDEBF',text:'Shared Bathroom'},{icon:'\uD83D\uDCBC',text:'Work Desk'},{icon:'\uD83D\uDD12',text:'Private'}],
-    '567219': [{icon:'\uD83D\uDECF',text:'1 Bed'},{icon:'\uD83D\uDC65',text:'4-Bed Dorm'},{icon:'\uD83D\uDD0C',text:'Power Outlet'},{icon:'\uD83D\uDCA1',text:'Reading Light'}]
+    '567219': [{icon:'\uD83D\uDECF',text:'1 Bed'},{icon:'\uD83D\uDC65',text:'4-Bed Dorm'},{icon:'\uD83C\uDFD9',text:'City View'},{icon:'\uD83D\uDD0C',text:'Power Outlet'},{icon:'\uD83D\uDCA1',text:'Reading Light'}]
   };
   function buildTagsDiv(tags, cls) {
     var c = document.createElement('div'); c.className = cls;

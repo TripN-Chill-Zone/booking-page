@@ -73,6 +73,8 @@
   grid-row: 1 !important;
   margin: 0 !important;
   padding: 0 !important;
+  overflow: hidden !important;
+  max-width: 120px !important;
 }
 .b24panel-room > .b24panel > .row:has(.b24-room-desc) {
   grid-column: 2 !important;
@@ -171,7 +173,8 @@
 */
 .b24-offer-pricetable { display: none !important; }
 .b24-offer-select { display: none !important; }
-.offer > .row {
+/* .offer > div > .row is the actual DOM path (intermediate div wrapper) */
+.offer > div > .row {
   display: block !important;
   width: 100% !important;
   margin: 0 !important;
@@ -360,6 +363,7 @@ a[href="#topofthebookingpage"] { display: none !important; }
     width: 100% !important;
     margin-left: 0 !important;
   }
+  .tnh-offer-controls .tnh-total-price { margin-left: auto !important; }
   .tnh-total-price { font-size: 14px !important; }
   .tnh-tag { font-size: 11px !important; padding: 1px 6px !important; }
 }
