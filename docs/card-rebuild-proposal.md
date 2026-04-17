@@ -1,201 +1,211 @@
-# Beds24 Room Card Rebuild — Proposal for Adversarial Review
+# Beds24 Booking Page — Card Rebuild Proposal
 
-## Project Context
+## Date: 2026-04-17 (Session 10)
 
-We're building a custom booking page for a hostel chain (Trip'N'Hostel) using Beds24's booking engine. Beds24 is a property management system that generates booking pages at `beds24.com/booking2.php`. We have no control over the HTML it generates — we can only inject CSS via a `&cssfile=` URL parameter and JS via the admin panel's "Insert in HTML <HEAD> bottom" field.
+## Background
 
-The booking page is embedded in an iframe on the client's WordPress site via a custom widget. The widget handles date/guest selection, the iframe displays rooms, and checkout breaks out of the iframe to a full Beds24 page.
+We're building a custom-styled booking page for Trip'N'Hostel Chill Zone, a hostel in Tirana. The booking engine is Beds24 (a third-party platform). The booking page is embedded in an iframe on the client's WordPress site via a custom widget. Guests search for rooms on the WordPress page, rooms appear in the iframe below, and clicking Book breaks out to Beds24's checkout.
 
-**Architecture docs:** [beds24-execution-context.md](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/beds24-execution-context.md)  
-**Execution plan:** [beds24-execution.md](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/beds24-execution.md)  
-**DOM structure reference:** [dom-structure.md](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/skill/dom-structure.md)  
-**Known gotchas:** [gotchas.md](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/skill/gotchas.md)  
-**Approved mockup (v13):** [mockup.html](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/mockup.html)  
-**Current CSS:** [CSS-base.css](https://github.com/TripN-Chill-Zone/booking-page/blob/main/CSS-base.css)  
-**Current helper JS:** [beds24-iframe-helper.js](https://github.com/TripN-Chill-Zone/booking-page/blob/main/beds24-iframe-helper.js)  
-**Current widget JS:** [booking-widget.js](https://github.com/TripN-Chill-Zone/booking-page/blob/main/booking-widget.js)
+### Project Documentation
 
----
-
-## What We've Built So Far (Sessions 1-10)
-
-### Architecture
-- **Custom WordPress widget** (`booking-widget.js`): self-injecting JS that renders a date/guest picker on the WordPress page, loads Beds24 in an iframe with `referer=widget` parameter, manages height sync via `postMessage`, shows loading spinner.
-- **Beds24 iframe helper** (`beds24-iframe-helper.js`): loaded via `<script>` bootstrapper in Beds24's `customhead` field. When it detects `referer=widget` + iframe context, it hides Beds24's booking strip/headers/footer, reports page height to the parent widget, and injects per-room Book buttons (Beds24's multi-room mode doesn't create per-room buttons natively).
-- **External CSS** (`CSS-base.css`): loaded via Beds24's `&cssfile=` parameter. Contains all layout and styling rules.
-- **CI/CD pipeline**: GitHub Actions deploys CSS/JS to VPS on push to `main`. `Date.now()` bootstrapper in Beds24's admin field eliminates caching issues. Stable filenames mean no admin/WordPress updates needed for deployments.
-
-### What Works
-- Widget → iframe → room display → checkout breakout flow
-- Height sync between iframe and parent page
-- Dorm room booking fix (hidden qty input → visible guest selector + Book button)
-- Room sorting by price (cheapest first, unavailable at bottom) via DOM reordering
-- Tag badges injected per room (hardcoded room ID → tag mapping)
-- Description text styling (`.tnh-desc-text` class added by helper)
-- Date strip hidden, carousel controls hidden, fakelinks hidden
-- iOS Safari viewport fix (`.container{max-width:100%}` prevents iframe expansion)
-- Unavailable room detection (skip Book button injection, show warning)
-
-### What We've Been Fighting (the Problem)
-
-The room card layout has been the primary source of bugs across Sessions 9-10. The approved mockup shows a compact card:
-
-```
-┌──────────┬──────────────────────────────────────────┐
-│  Photo   │ Description text                         │
-│  90x68   │                                          │
-├──────────┴──────────────────────────────────────────┤
-│ 🛏 Sleeps 2 · 🚿 Ensuite · 💼 Work Desk             │
-├─────────────────────────────────────────────────────┤
-│ from €45.00 / night                                 │
-│ Select [- ▼]                    €90.00  [Book]      │
-└─────────────────────────────────────────────────────┘
-```
-
-To achieve this, we've been:
-
-1. **Resetting Bootstrap's grid** (`.b24panel-room .b24panel [class*="col-"] { width:auto; float:none; padding:0 }`) — this fights Beds24's `col-xs-12 col-sm-6` classes on every module. Required `!important` on everything. Created a specificity war where the reset's `max-width:100%` overrode our thumbnail's `max-width:120px`, breaking mobile layout.
-
-2. **Using CSS Grid with `:has()` selectors** for desktop layout (`.row:has(.b24-room-slider)` → grid column 1, `.row:has(.b24-room-desc)` → grid column 2). Works on desktop but adds complexity.
-
-3. **Using CSS `order` + negative margins** for mobile layout — reordering flex children to get `slider → desc → tags → offer` from a DOM order of `offer → slider → clearfix → desc → clearfix → mobile-tags`. The negative margin trick (`margin-top: -78px; margin-left: 100px`) positions the description beside the thumbnail.
-
-4. **Fighting Beds24's hidden class behavior** — Beds24 adds `.hidden` to the from-price div when qty is selected. Our CSS was hiding it (following Beds24's intent) then trying to show the total price in its place. This caused the offer bar to shrink/reflow, breaking alignment.
-
-5. **Fighting flex-wrap for the offer bar** — the offer bar contains `form-inline` (Select + dropdown), `from-price` div, and our injected `book-group` (total + Book button). On mobile we need these on two lines. We tried `flex-wrap` with `order` values and `flex-basis:100%` on the from-price to force a line break, then `margin-left:auto` on book-group for right-alignment. This never worked reliably — the book-group shifts left after qty selection.
-
-6. **Injecting a wrapper div** (`.tnh-offer-row`) around `form-inline` and `book-group` to create an explicit flex row. This is the current approach — it adds JS complexity to solve a CSS problem.
-
-7. **Hiding/showing Beds24's native elements selectively** — we hide the date strip, carousel controls, fakelinks, per-occupancy prices, guest count selectors, features module (106), "Up" button, offer name, etc. Each hidden element is a potential future breakage point if Beds24 changes class names.
-
-### Core Issue
-
-We're spending most of our time fighting Beds24's DOM structure rather than building features. Every CSS fix creates a new specificity issue. Every JS injection needs to account for Beds24's AJAX rendering timing, MutationObserver interactions, and class toggling behavior. The mockup was approved in Session 9, but Session 10 has been almost entirely spent trying to make the live DOM match it.
+- [Execution plan](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/beds24-execution.md)
+- [Architecture decisions & rationale](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/beds24-execution-context.md)
+- [DOM structure reference](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/skill/dom-structure.md)
+- [CSS architecture](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/skill/css-architecture.md)
+- [Known gotchas](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/skill/gotchas.md)
+- [Approved mockup v13](https://github.com/TripN-Chill-Zone/booking-page/blob/main/docs/mockup.html)
+- [Current CSS](https://github.com/TripN-Chill-Zone/booking-page/blob/main/CSS-base.css)
+- [Current helper JS](https://github.com/TripN-Chill-Zone/booking-page/blob/main/beds24-iframe-helper.js)
+- [Current widget JS](https://github.com/TripN-Chill-Zone/booking-page/blob/main/booking-widget.js)
 
 ---
 
-## Approaches Tried and Their Outcomes
+## Problem Statement
 
-### 1. CSS-Only Styling (Sessions 5-7)
-**Approach:** External CSS file targets Beds24's native elements with `!important` overrides.  
-**Outcome:** Works for simple styling (colors, fonts, borders, shadows). Fails for layout because Bootstrap's grid, Beds24's inline styles, and the Style panel's generated CSS all compete at similar specificity. Every layout rule needs `!important` and specific selectors.  
-**Status:** Partially retained — brand colors, fonts, and simple styling still use this approach.
+The current approach styles Beds24's native DOM using external CSS and a helper JS that injects additional elements (tags, Book buttons, price displays) into Beds24's existing markup. This has become increasingly fragile and complex because:
 
-### 2. CSS Grid with `:has()` Selectors (Session 9)
-**Approach:** Desktop layout uses CSS Grid on the panel body, with `:has()` selectors to identify which `.row` contains the slider vs description.  
-**Outcome:** Works on desktop. But the grid→flex switch for mobile requires `order` properties on all children, and the DOM order doesn't match the visual order. Negative margins are fragile.  
-**Status:** Currently in production, works but fragile.
+1. **Beds24's DOM is hostile to custom styling.** It uses Bootstrap 3 with `!important` rules, inline styles from the Style panel, collapsed sections that must be forced open, and a deeply nested structure with inconsistent class naming. Every CSS rule requires `!important` and high specificity to override Beds24's own styles.
 
-### 3. Flex-Wrap for Offer Bar (Sessions 9-10)
-**Approach:** Use `flex-wrap` on the multipricebox so the from-price takes a full line and the select+book share the second line.  
-**Outcome:** Failed repeatedly. `flex-wrap` line breaks are unpredictable when Beds24 toggles `.hidden` on the from-price. `margin-left:auto` on book-group doesn't work when the parent width collapses. Tried `justify-content: space-between`, `flex-end`, `flex-basis:100%` — none worked reliably on mobile.  
-**Status:** Rejected.
+2. **The offer bar alignment has been the hardest problem.** The mockup shows a simple two-line layout:
+   ```
+   from €45.00 / night
+   Select [- ▼]           €90.00  [Book]
+   ```
+   Achieving this with Beds24's DOM has required fighting: Bootstrap column classes (`col-xs-12 col-sm-3`), an unexpected `div#selectors1-{roomId}` wrapper between `.multiroomshow` and `.b24-multipricebox`, Beds24's `.hidden` class toggling on the price div when quantity is selected, flex-wrap line break behavior differences across mobile browsers, and parent containers collapsing to 0 width.
 
-### 4. Explicit Wrapper Div (Session 10, current)
-**Approach:** JS creates `.tnh-offer-row` div, moves `form-inline` and `book-group` into it.  
-**Outcome:** Not yet confirmed working. Adds JS complexity. Still fights Beds24's `.hidden` class toggling on the from-price.  
-**Status:** Latest deployment, untested.
+3. **iOS Safari iframe viewport expansion.** The Beds24 page uses Bootstrap's `.container` class which sets fixed widths at desktop breakpoints (750px, 970px, 1170px). Inside an iframe on iOS Safari, this causes the iframe to expand beyond the phone's viewport width, preventing CSS `@media (max-width: 767px)` from triggering. Fixed by injecting `.container{max-width:100%}` early.
 
-### 5. CSS `order` for Room Sorting (Session 10)
-**Approach:** Use CSS `order` on room wrapper divs to sort by price.  
-**Outcome:** Failed — Beds24 loads all rooms into a single wrapper div via AJAX, so CSS `order` on the per-room wrapper divs has no effect (they're empty).  
-**Status:** Rejected. Replaced with DOM reordering.
+4. **Specificity wars.** Our Bootstrap reset (`.b24panel-room .b24panel [class*="col-"]`) inadvertently overrode our own thumbnail sizing rules because it had higher specificity. Required bumping all component selectors to 3-class specificity.
 
-### 6. DOM Reordering for Room Sorting (Session 10)
-**Approach:** `appendChild()` to move `.b24room` elements within their shared parent, sorted by price.  
-**Outcome:** Works. Sorts once on load (guarded by `tnhSorted` flag). No event listener breakage observed.  
-**Status:** In production, working.
+5. **Cumulative complexity.** The CSS file is 465 lines with heavy use of `!important`, `:has()` selectors, CSS `order` for mobile reordering, negative margins for layout tricks, and multiple media query overrides. The helper JS is 577 lines with 8 functional sections, a MutationObserver, and extensive DOM manipulation that patches elements into Beds24's existing structure.
 
 ---
 
-## Proposed Approach: Full Card Rebuild
+## What We've Tried
+
+### Approaches That Are Working
+
+- **Iframe architecture (widget for rooms, breakout for checkout)** — Stable, well-tested across Sessions 6-10. The widget (`booking-widget.js`) handles date/guest input on WordPress, loads Beds24 in an iframe with `referer=widget` parameter, and the helper hides Beds24's chrome when embedded.
+
+- **Date.now() bootstrapper in Beds24 customhead** — Eliminates cache issues for the helper JS. The `customhead` field contains a bootstrapper that loads the helper with a timestamp query parameter, so changes deploy immediately without touching the Beds24 admin.
+
+- **GitHub Actions CI/CD** — Push to `main` auto-deploys CSS/JS files to VPS via SCP. Stable filenames (`CSS-base.css`, `beds24-iframe-helper.js`, `booking-widget.js`) mean no reference updates needed.
+
+- **Room sorting via DOM reorder** — Reads prices from the DOM at runtime, sorts available rooms cheapest-first, pushes unavailable to the bottom. Works reliably.
+
+- **Dorm room fix** — Moves the guest selector into a new wrapper, relabels "Guests" → "Beds", hides the orphan price box. This approach (building our own wrapper around moved native elements) is the model for the proposed rebuild.
+
+- **Tag injection** — Desktop tags inside `.b24-room-desc`, mobile tags as a separate div with CSS `order`. Works well.
+
+### Approaches That Failed or Required Excessive Complexity
+
+- **CSS-only offer bar layout via flex-wrap** — Multiple iterations (Sessions 9-10) trying to create a two-line offer bar using `flex-wrap` with `order` values on children. The from-price div (`width: 100%`, `order: -1`) should force a line break, with form-inline and book-group sharing the next line. This works inconsistently across browsers and breaks when Beds24 toggles `.hidden` on the from-price after quantity selection. Attempted fixes: `justify-content: flex-end`, `justify-content: space-between`, `flex-basis: 100%`, explicit `width: 100%` on every parent in the chain. None reliably keep the Book button right-aligned on the second line across all states.
+
+- **CSS `order` on room wrapper divs for sorting** — Failed because Beds24 loads all rooms via AJAX into a single `#ajaxroomoffer` wrapper, leaving the other wrapper divs empty. CSS `order` on empty divs has no effect.
+
+- **Overriding Beds24's `.hidden` class on from-price** — We force `display: block !important` to keep the from-price visible when Beds24 hides it after quantity selection. This fights the MutationObserver loop (Beds24 adds `.hidden`, our code removes it, observer fires again). Manageable with the `isModifying` guard but adds fragility.
+
+### Approaches Rejected in Prior Sessions
+
+- **Full iframe flow (booking through confirmation inside iframe)** — Rejected Session 6. Confirmation page rendered at wrong scroll position, height sync broke on page transitions.
+- **Beds24 WordPress plugin** — Rejected Session 4-5. iOS double-scroll, no control over booking flow.
+- **SPA approach** — Understood to be a different project scope and budget.
+- **Direct Beds24 page (no iframe)** — Rejected Session 6. Client wanted rooms inline on WordPress page.
+
+---
+
+## Proposed Approach: Card Rebuild
 
 ### Concept
 
-Instead of styling and rearranging Beds24's native DOM elements, **hide the entire card body and replace it with our own HTML structure.** Extract data from Beds24's DOM (room name, photo URL, description, price), move Beds24's functional form elements (qty `<select>`, guest `<select>`) into our markup, and build the card layout from scratch.
+Instead of styling Beds24's native DOM, **hide Beds24's card content and rebuild each room card with our own clean HTML structure.** Move Beds24's functional form elements (quantity `<select>`, guest `<select>`, hidden inputs) into our markup so form submission continues to work natively.
 
-### What We'd Build
+### What Changes
+
+**Helper JS becomes the primary renderer.** Instead of patching elements into Beds24's DOM (injecting tags, book buttons, price displays, hiding fakelinks, forcing open collapsed sections), the helper:
+
+1. Waits for Beds24 to render room cards
+2. Extracts data from each card: room name, photo URL, description text, price, availability
+3. Hides the original card body (`display: none` on `.b24panel`)
+4. Builds a new card body with our own markup
+5. Moves Beds24's native `<select>` elements into our markup (not cloned — moved, so form state is preserved)
+6. Appends our card body to the existing `.b24panel-room` container
+
+**CSS becomes pure styling of our own markup.** No more `!important` on every rule, no Bootstrap reset, no `:has()` selectors, no specificity wars. The CSS targets our own classes (`.tnh-card`, `.tnh-offer-bar`, `.tnh-card-photo`, etc.) which have no competing styles.
+
+### Proposed Card Structure
 
 ```html
-<!-- Beds24's original card body → display: none -->
-<!-- Our replacement: -->
-<div class="tnh-card-body">
-  <div class="tnh-card-content">
-    <img class="tnh-card-photo" src="[extracted from carousel]" />
-    <div class="tnh-card-info">
-      <p class="tnh-card-desc">[extracted from description div]</p>
-    </div>
+<!-- Beds24's panel-room wrapper is kept for the heading -->
+<div class="panel b24panel-room">
+  <div class="panel-heading b24-roompanel-heading">
+    <!-- Room name stays in Beds24's heading -->
   </div>
-  <div class="tnh-card-tags">[injected from ROOM_TAGS, same as now]</div>
-  <div class="tnh-offer-bar">
-    <div class="tnh-offer-price">from €XX.XX / night</div>
-    <div class="tnh-offer-controls">
-      <span class="tnh-select-label">Select</span>
-      [moved: original <select> element — preserves form submission]
-      <span class="tnh-total-price">[hidden until qty selected]</span>
-      <button class="tnh-book-btn">Book</button>
+
+  <!-- Beds24's original panel-body: hidden -->
+  <div class="panel-body b24panel" style="display:none">
+    <!-- Original Beds24 content, hidden but still in DOM for form elements -->
+  </div>
+
+  <!-- Our rebuilt card body -->
+  <div class="tnh-card">
+    <div class="tnh-card-body">
+      <img class="tnh-card-photo" src="[extracted from carousel]" alt="" />
+      <div class="tnh-card-info">
+        <p class="tnh-card-desc">[extracted from description div]</p>
+        <div class="tnh-card-tags">[built from ROOM_TAGS data]</div>
+      </div>
     </div>
+    <div class="tnh-offer-bar">
+      <div class="tnh-offer-price">from €XX.XX / night</div>
+      <div class="tnh-offer-controls">
+        <label>Select</label>
+        <!-- Beds24's actual <select> element, MOVED here -->
+        <select id="sr1-{roomId}">...</select>
+        <span class="tnh-total-price"></span>
+        <button class="tnh-book-btn">Book</button>
+      </div>
+    </div>
+    <!-- For unavailable rooms -->
+    <div class="tnh-unavailable">Not available on 18 Apr</div>
   </div>
 </div>
 ```
 
-### What Gets Eliminated
+### What We Keep
 
-| Current Approach | Eliminated By Rebuild |
-|---|---|
-| Bootstrap grid reset (`.b24panel [class*="col-"]`) | No Bootstrap elements in our markup |
-| CSS Grid + `:has()` selectors for desktop | Simple flexbox on our own markup |
-| `order` + negative margins for mobile | Clean DOM order matches visual order |
-| `!important` on ~90% of CSS rules | No specificity wars with our own classes |
-| Flex-wrap line break tricks for offer bar | Explicit `tnh-offer-bar` with block/flex children |
-| Fighting `.hidden` class on from-price | We control visibility directly |
-| Forcing open collapsed sections | We extract data before Beds24 collapses them |
-| Hiding ~10 individual Beds24 elements | One `display:none` on the original panel body |
-| Separate desktop/mobile tag injection | One tag container, CSS handles responsive |
-| Dorm-specific DOM rearrangement | Same card structure for all room types |
+- **Beds24's `<form#formlook>`** — Untouched. Our rebuilt cards live inside the same form.
+- **Beds24's `<select>` elements** — Moved (not cloned) into our markup. `name` attributes, `id` attributes, and event listeners travel with the element. Form submission works natively.
+- **Beds24's hidden inputs** — For dorm rooms, `input[type="hidden"][name^="sr1-"]` stays in place.
+- **Room heading** — Beds24's `.b24-roompanel-heading` is kept as-is (just styled).
+- **Room sorting** — `sortRooms()` continues to reorder `#ajaxroomoffer` wrappers via DOM reordering.
+- **Widget architecture** — No changes to the widget or iframe flow.
+- **Bootstrapper deployment** — No changes to how files are loaded.
+- **CI/CD pipeline** — No changes.
 
-### What Stays the Same
+### What We Eliminate
 
-- **Widget JS** (`booking-widget.js`): unchanged. Still handles date/guest selection, iframe creation, height sync.
-- **Room sorting**: DOM reordering on `#ajaxroomoffer` wrappers stays the same.
-- **Section 1** (hide chrome + height sync): unchanged. Still hides booking strip/headers/footer when embedded.
-- **Section 5** (date strip overrides): can be simplified since we hide the price table.
-- **Form submission**: preserved. We move the actual `<select>` elements, so `form#formlook` submission includes them. Book button still appends `bookmult` hidden input and submits the form.
-- **Beds24 admin configuration**: no changes needed. Layout, Style, Content settings stay as-is.
-- **CI/CD pipeline**: unchanged. Push to `main` deploys to VPS.
+- Bootstrap reset rules (~15 lines of CSS)
+- `:has()` selectors for grid placement (~20 lines)
+- Desktop grid layout rules fighting Bootstrap columns (~30 lines)
+- Mobile flex-direction/order reordering (~25 lines)
+- Offer bar flex-wrap layout (~25 lines)
+- Collapsed section forcing (`[id^="collapsedesc"]`, `[id^="collapseslider"]`)
+- Fakelink hiding
+- Carousel control hiding
+- Most `!important` declarations
+- The `.tnh-offer-row` wrapper
+- The `enhancePrices()` function (price display built into our card)
+- The `enhanceRoomCards()` function (tags and desc built into our card)
+- Dorm-specific layout fixes in CSS
+- Negative margin hacks for mobile desc positioning
 
 ### Risks and Mitigations
 
 | Risk | Mitigation |
 |---|---|
-| Beds24 changes DOM structure, our selectors break | Already a risk with current approach. Rebuild has fewer selectors (extract data from well-known IDs like `#roomnametext{id}`, `[id^="from-"]`, `#collapsedesc{id}`). Same maintenance burden. |
-| Moved `<select>` elements lose event listeners | Beds24 attaches change handlers via delegated events on `form#formlook`, not directly on the selects. Moving selects within the same form preserves delegation. Already proven with dorm fix (Session 7). |
-| Data extraction fails (price/description not yet in DOM when helper runs) | MutationObserver + `isModifying` guard already handles this. Helper re-runs `applyFixes()` on DOM changes. Card rebuild would use the same pattern — only build when data is available. |
-| Photo URL extraction fails | Fallback: show Beds24's original photo element instead of extracting the URL. Or hide photo if extraction fails — card still functional. |
-| Performance: building DOM elements is slower | Negligible. We're creating ~20 elements per room × 4 rooms = ~80 elements. Current approach already creates comparable elements (tags, book buttons, wrappers, price spans). |
-| Accessibility: screen readers lose Beds24's native semantics | Our markup can use the same semantic structure (headings, buttons, form elements). The moved `<select>` retains its `id` and `name` attributes. |
+| Moving `<select>` elements breaks Beds24's event listeners | Beds24 uses delegated listeners on the form, not direct listeners on selects. Delegated listeners work regardless of element position in the DOM. The dorm fix already moves a `<select>` successfully — this is proven. |
+| Beds24 re-renders room cards via AJAX (e.g., after date change) | The MutationObserver already handles this — `applyFixes()` runs on DOM changes. The rebuild function checks for a marker class to avoid rebuilding already-processed cards. If Beds24 replaces the card HTML, the marker is lost and the card gets rebuilt. |
+| Hidden original panel-body breaks form submission | The `<select>` elements are moved out of the hidden div into our visible card. `display:none` on the parent doesn't affect child elements that have been moved elsewhere. Form submission reads values by `name` attribute, not by visibility. |
+| Beds24 frontend update changes the extraction selectors | Same risk as current approach (we target `.carousel .item.active img`, `[id^="from-"]`, etc.). The rebuild concentrates all extraction in one function, making it easier to update selectors in one place versus the current approach where extraction logic is scattered across 4+ functions. |
+| Card rebuild causes visible flash (original → rebuilt) | The original panel-body is hidden immediately when the helper loads (via the Section 1 inline style injection). The rebuild happens on DOMContentLoaded or MutationObserver. The loading spinner in the widget covers this transition. |
+| Performance: rebuilding cards on every MutationObserver fire | Marker class (`tnh-card-built`) prevents re-processing. Only new/replaced cards get rebuilt. |
 
-### What This Doesn't Solve
+### Impact on Other Components
 
-- **Checkout page styling** (Phase P2): still needs CSS-only approach on Beds24's checkout DOM.
-- **Confirmation page** (Phase P3): same — CSS-only.
-- **10-second load time**: likely caused by the `Date.now()` bootstrapper defeating all caching. The helper JS is fetched fresh on every page load. This is a tradeoff we chose for development iteration speed — production would use versioned filenames with caching.
-- **iOS Safari iframe viewport expansion**: the `.container{max-width:100%}` fix in the helper's style injection handles this regardless of card approach.
-- **Room descriptions and photos**: still sourced from Beds24 admin. The rebuild extracts them from Beds24's DOM — it doesn't host them separately.
+| Component | Impact |
+|---|---|
+| `booking-widget.js` | None — widget doesn't interact with card internals |
+| `CSS-base.css` | Major reduction — most rules replaced with clean selectors targeting `.tnh-*` classes |
+| `beds24-iframe-helper.js` | Major rewrite of Sections 3, 4, 6, 7. Sections 1 (chrome hiding), 2 (removed), 5 (date strip), 8 (sorting) are unchanged |
+| Beds24 admin fields | None |
+| WordPress Custom HTML block | None |
+| CI/CD pipeline | None |
+| Checkout/confirmation flow | None — rebuild only affects room display page |
 
 ### Implementation Plan
 
-1. **New function `rebuildRoomCards()`** replaces `enhanceRoomCards()`, portions of `injectBookButtons()`, portions of `enhancePrices()`, and `fixDormRooms()`.
-2. **Simplified CSS** — most of the current CSS file gets replaced. Brand variables, base styles, and the rebuilt card styles. No Bootstrap resets, no `:has()` selectors, no `!important` cascade.
-3. **Preserve form mechanics** — move `<select>` elements, keep Book button submission logic, keep `bookmult` hidden input injection.
-4. **Test incrementally** — deploy via CI/CD, test on mobile, iterate.
+1. Write `rebuildCard(room)` function that extracts data, hides original, builds new markup, moves form elements
+2. Replace `fixDormRooms()`, `injectBookButtons()`, `enhancePrices()`, `enhanceRoomCards()` with single `rebuildCards()` call
+3. Keep `sortRooms()` as-is (operates on wrapper divs, not card internals)
+4. Rewrite CSS to target `.tnh-*` classes only
+5. Test on mobile (the primary viewport) and desktop
+6. Verify form submission works for all room types including dorms
+
+### Success Criteria
+
+- Offer bar alignment consistent across all rooms and all states (no qty, qty selected, unavailable)
+- Mobile layout matches mockup v13 without CSS hacks
+- Form submission works for all room types
+- No regression in: room sorting, tag display, price display, dorm booking, iframe height sync
+- CSS file under 200 lines with minimal `!important` usage
+- Helper JS complexity reduced (fewer sections, clearer data flow)
 
 ---
 
-## Questions for Adversarial Review
+## Open Questions for Review
 
-1. Are there Beds24 form submission mechanics we might break by hiding the original card body and moving select elements?
-2. Is there a simpler approach we're missing that would solve the offer bar alignment without a full rebuild?
-3. What happens when Beds24 fires AJAX updates (e.g., qty change triggers price recalculation) — will the updates target the hidden original elements, and will we need to re-extract data?
-4. Should we keep the original card visible but overlay/reposition our elements, instead of hiding it completely?
-5. Is the tag data (room ID → tag mapping) better extracted from Beds24's Features module (106) rather than hardcoded? The Features module exists in the DOM but is currently hidden.
+1. Are there Beds24 behaviors we haven't considered that depend on the card elements being visible? (e.g., price recalculation triggered by visibility of certain elements)
+2. Should we keep the original panel-body hidden but present (`display:none`) or remove it entirely (`remove()`)? Hidden-but-present is safer for form submission but could cause MutationObserver churn if Beds24 keeps modifying hidden elements.
+3. The tag data is currently hardcoded by room ID in the helper JS. Should this remain hardcoded, or should we extract tags from Beds24's Features module (`.b24-room-106`)? The Features module is currently hidden because its default styling is poor, but the data is there.
+4. The current `enhancePrices()` function handles per-night price calculation (total ÷ nights). In the rebuild, should this calculation happen once at build time, or reactively (watching for Beds24 to update the price after qty changes)?
