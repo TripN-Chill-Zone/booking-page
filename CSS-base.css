@@ -428,7 +428,6 @@ select[id^="naa"] {
   /* Mobile offer: 2 lines
      Line 1: from €45.00 / night (full width)
      Line 2: Select [- ▼] ——— €90.00 [Book]
-     After qty selection: from-price hides, book-group must stay right-aligned
   */
   .b24-offer-select .multiroomshow { flex-wrap: wrap !important; }
   .b24-offer-select .multiroomshow > [id^="selectors"] { width: 100% !important; }
@@ -436,7 +435,8 @@ select[id^="naa"] {
     flex-wrap: wrap !important;
     gap: 8px !important;
     width: 100% !important;
-    justify-content: flex-end !important;
+    justify-content: space-between !important;
+    align-items: center !important;
   }
   .b24-offer-select .b24-multipricebox [id^="from-"],
   .b24-offer-select .b24-multipricebox .at_offerfromdiv {
@@ -447,8 +447,8 @@ select[id^="naa"] {
     text-align: left !important;
   }
   .tnh-price-pernight-main { font-size: 12px !important; }
-  .b24-offer-select .form-inline { order: 0 !important; }
-  .tnh-book-group { order: 1 !important; margin-left: auto !important; }
+  .b24-offer-select .form-inline { order: 0 !important; flex-shrink: 0 !important; }
+  .tnh-book-group { order: 1 !important; margin-left: auto !important; flex-shrink: 0 !important; }
 
   .tnh-tag { font-size: 11px !important; padding: 1px 6px !important; }
   .tnh-total-price { font-size: 14px !important; }
