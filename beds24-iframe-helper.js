@@ -446,6 +446,77 @@
   }
 
   /* ============================================
+   * SECTION 8: Room ordering
+   * Reads prices from DOM, sorts cheapest first,
+   * pushes unavailable rooms to bottom.
+   * Uses CSS order on .b24room (requires flex parent).
+   * ============================================ */
+  function sortRooms() {
+    if (!getIsRoomSearch()) return;
+    var container = document.querySelector('.b24fullcontainer-rooms .container');
+    if (!container) return;
+
+    /* Make container a flex column so CSS order works */
+    container.style.setProperty('display', 'flex', 'important');
+    container.style.setProperty('flex-direction', 'column', 'important');
+
+    /* Room wrappers are div#ajaxroomoffer{roomId}, direct children of container */
+    var wrappers = container.querySelectorAll('[id^="ajaxroomoffer"]');
+    if (wrappers.length < 2) return;
+
+    var sortable = [];
+    wrappers.forEach(function(wrapper) {
+      var room = wrapper.querySelector('.b24room');
+      if (!room) return;
+
+      var offer = room.querySelector('.offer');
+      var price = 999999;
+
+      if (offer) {
+        var fromDiv = offer.querySelector('[id^="from-"]');
+        if (fromDiv) {
+          if (fromDiv.dataset.tnhTotal) {
+            price = parseFloat(fromDiv.dataset.tnhTotal) || 999999;
+          } else {
+            var dollars = fromDiv.querySelector('.bookingpagedollars');
+            var cents = fromDiv.querySelector('.bookingpagecents');
+            if (dollars && cents) {
+              var d = parseInt(dollars.textContent, 10);
+              var c = parseInt(cents.textContent.replace('.', ''), 10) || 0;
+              if (!isNaN(d)) price = d + (c / 100);
+            }
+          }
+        }
+      }
+
+      var unavailable = false;
+      if (offer) {
+        var warnDiv = offer.querySelector('[class*="offerwarndiv"]');
+        if (warnDiv && !warnDiv.classList.contains('hidden')) unavailable = true;
+      }
+
+      sortable.push({ el: wrapper, price: price, unavailable: unavailable });
+    });
+
+    /* Sort: available by price asc, then unavailable by price asc */
+    sortable.sort(function(a, b) {
+      if (a.unavailable !== b.unavailable) return a.unavailable ? 1 : -1;
+      return a.price - b.price;
+    });
+
+    /* Apply CSS order values */
+    sortable.forEach(function(item, i) {
+      item.el.style.setProperty('order', i + 1, 'important');
+    });
+
+    /* Push #notavailableforselection to the end */
+    var notAvail = container.querySelector('#notavailableforselection');
+    if (notAvail) {
+      notAvail.style.setProperty('order', sortable.length + 10, 'important');
+    }
+  }
+
+  /* ============================================
    * INIT
    * ============================================ */
   var isModifying = false;
@@ -458,6 +529,7 @@
       injectBookButtons();
       enhancePrices();
       enhanceRoomCards();
+      sortRooms();
       if (isWidget && isEmbedded) send();
     } catch(e) {}
     setTimeout(function() { isModifying = false; }, 500);
