@@ -30,16 +30,20 @@ The booking page uses a two-part system: a custom JavaScript widget on the WordP
 WordPress side:
   Custom HTML block on "Book A Room" page:
     <div id="tnh-booking-root"></div>
-    <script src="https://{domain}/booking-widget-v{N}.js"></script>
+    <script>var s=document.createElement('script');
+    s.src='https://astrongpresence.com/booking-widget.js?v='+Date.now();
+    document.head.appendChild(s);</script>
   
   The widget JS is self-contained — injects CSS, HTML, and all logic.
-  Hosted on VPS, versioned filenames for cache busting.
+  Hosted on VPS, stable filename, cache-busted by Date.now() in bootstrapper.
 
 Beds24 side:
   customhead field (Insert in HTML <HEAD> bottom):
-    <script src="https://{domain}/beds24-iframe-helper-v{N}.js"></script>
-    NOTE: customhead does NOT strip <script> tags (unlike custombody)
-    This is the preferred injection point for external JS.
+    <script>var s=document.createElement('script');
+    s.src='https://astrongpresence.com/beds24-iframe-helper.js?v='+Date.now();
+    document.head.appendChild(s);</script>
+    NOTE: Uses Date.now() bootstrapper — never needs updating after initial setup.
+    NOTE: customhead does NOT strip <script> tags (unlike custombody).
 
   customheadtop field (Insert in HTML <HEAD> top):
     Google Fonts <link> tag — set once per property
@@ -50,15 +54,22 @@ Beds24 side:
     Keep under 2K — all real CSS goes in external file
 
   custombody field (Insert in HTML <BODY> bottom):
-    Hide/reveal JS from earlier sessions
+    Currently empty — all JS loaded via customhead bootstrapper
     LIMIT: ~2,000 characters
     IMPORTANT: strips <script> tags on programmatic save — must paste manually
-    NOTE: with the iframe helper in customhead, custombody may become redundant
 
   External CSS file (served via &cssfile= URL parameter):
-    https://{domain}/CSS-base-v{N}.css
+    https://astrongpresence.com/CSS-base.css
+    Stable filename — cache-busted via ?v=Date.now() appended by widget JS
     Contains: all structural rules, aesthetics, layout, responsive design
     No character limit
+
+Deployment:
+  GitHub repo: https://github.com/TripN-Chill-Zone/booking-page (public)
+  CI/CD: Push to main → GitHub Actions SSHes to VPS → deploys 3 stable files
+  Files deployed: CSS-base.css, beds24-iframe-helper.js, booking-widget.js
+  Target: /www/wwwroot/astrongpresence.com/
+  No manual upload, no versioned filenames, no reference updates needed.
 ```
 
 ### Guest Flow
@@ -85,7 +96,7 @@ The booking widget has a CONFIG block at the top:
 var CONFIG = {
   ownerid: '141266',
   propid:  '271142',
-  cssfile: 'https://astrongpresence.com/CSS-base-v3.css',
+  cssfile: 'https://astrongpresence.com/CSS-base.css',
   minNights: 2,
   maxNights: 90,
   defaultNights: 2,
@@ -95,7 +106,7 @@ var CONFIG = {
 };
 ```
 
-For rollout, create per-property widget files with updated CONFIG values.
+For rollout, create per-property widget files with updated CONFIG values. The widget appends `?v=Date.now()` to the cssfile URL for cache busting.
 
 ### Iframe Helper Behavior
 
@@ -123,24 +134,31 @@ The iframe has `scrolling="no"`. The helper reports height via `postMessage`. Th
 - 8-second fallback shows iframe at 2400px if no height message arrives
 - **CRITICAL: iframe must use `opacity:0` during loading, NOT `display:none`.** `display:none` prevents content rendering inside the iframe, making all height measurements return 0. This caused an 18-second loading delay on desktop (Session 7).
 
-### CSS Update Protocol
+### Deployment Protocol (CI/CD)
 
-1. Create new file with incremented version: `CSS-base-v{N+1}.css`
-2. Upload to VPS via aaPanel file manager
-3. Update booking page URL to reference new filename (Cloudflare/LiteSpeed cache — versioned names bust cache)
-4. Hard refresh to verify
-5. If critical CSS structure changed, update `bookingcss` inline field too
+All CSS and JS deployment is automated via GitHub Actions:
 
-### JS Update Protocol
+1. Edit files locally or in Claude chat
+2. Commit and push to `main` branch of `https://github.com/TripN-Chill-Zone/booking-page`
+3. GitHub Actions auto-deploys changed files to VPS via SCP (~15 seconds)
+4. Hard refresh to verify (the Date.now() bootstrappers bypass all caches)
 
-1. Create new file with incremented version (e.g., `beds24-iframe-helper-v{N+1}.js`)
-2. Upload to VPS via aaPanel file manager
-3. **Verify file is accessible** — navigate to URL, confirm 200 response and correct content
-4. Update the corresponding Beds24 field ("Insert in HTML <HEAD> bottom") or WordPress HTML block
-5. Hard refresh to verify
-6. If 404: file not uploaded, or cached 404 — use new version number or purge cache
+**No manual file uploads, no versioned filenames, no Beds24 admin or WordPress updates needed.**
 
-**CRITICAL: Always verify file accessibility (step 3) before debugging anything else. This protocol caught two deployment failures in Session 7.**
+The only time Beds24 admin or WordPress need editing is:
+- Initial property setup (one-time)
+- Changes to Beds24 content (room descriptions, prices, photos)
+- Changes to the `bookingcss` critical CSS payload
+
+### First-Session Verification Protocol
+
+**Run this on the first interaction of every new session:**
+
+1. Verify VPS files are accessible: navigate to `https://astrongpresence.com/CSS-base.css`, `beds24-iframe-helper.js`, `booking-widget.js` — confirm 200 and correct content
+2. Verify Beds24 `customhead` field has the Date.now() bootstrapper
+3. Verify WordPress Custom HTML block has the Date.now() bootstrapper
+4. Hard refresh the WordPress booking page and confirm rooms load
+5. Then start work
 
 ---
 
@@ -217,17 +235,16 @@ For each new property:
 - [ ] Room features entered per room (or property-level in PROPERTIES > DESCRIPTION)
 
 ### 3. CSS Deployment
-- [ ] Upload external CSS file to VPS: `CSS-base-v{N}.css`
+- [ ] Commit `CSS-base.css` to repo and push (GitHub Actions deploys to VPS)
 - [ ] Paste critical CSS payload + variable overrides into `bookingcss` field
 - [ ] Verify booking page loads with `&cssfile=` parameter
 
 ### 4. JS Deployment
-- [ ] Upload booking widget JS to VPS: `booking-widget-v{N}.js` (copy from Chill Zone, update CONFIG)
-- [ ] Upload Beds24 iframe helper JS to VPS: `beds24-iframe-helper-v{N}.js`
+- [ ] Commit `booking-widget.js` to repo with per-property CONFIG (GitHub Actions deploys)
+- [ ] Commit `beds24-iframe-helper.js` to repo (shared across properties)
 - [ ] **Verify both files accessible** — navigate to URLs, confirm 200 response
-- [ ] Add iframe helper `<script>` tag to `customhead` field (does NOT strip tags)
-- [ ] WordPress: add Custom HTML block with `<div id="tnh-booking-root"></div>` + `<script src>` tag
-- [ ] Existing `custombody` content: keep hide/reveal JS from earlier setup (paste manually if needed)
+- [ ] Add Date.now() bootstrapper `<script>` tag to `customhead` field (one-time, never needs updating)
+- [ ] WordPress: add Custom HTML block with `<div id="tnh-booking-root"></div>` + Date.now() bootstrapper (one-time)
 
 ### 5. Verify
 - [ ] Widget renders on WordPress page: date picker, guest selector, Search button
@@ -298,10 +315,10 @@ This is a per-property issue — every hostel with dorm rooms will have it. The 
 
 | Task | Tool | Notes |
 |---|---|---|
-| CSS/JS authoring | Claude Code / Claude chat | Write files, output for download |
-| VPS file upload | User via aaPanel file manager | Upload to site root, versioned filenames |
-| **File verification** | **Claude in Chrome or user browser** | **ALWAYS navigate to URL and confirm 200 before debugging** |
-| WordPress page editing | User or Claude in Chrome | Custom HTML block with div + script tag |
+| CSS/JS authoring | Claude Code / Claude chat | Edit files, commit and push to deploy |
+| Deployment | GitHub Actions CI/CD | Auto-deploys on push to `main` via SCP to VPS |
+| **File verification** | **Claude in Chrome or user browser** | **Navigate to URL and confirm 200 before debugging** |
+| WordPress page editing | User or Claude in Chrome | One-time setup only (Date.now() bootstrapper) |
 | Beds24 admin field reads | Claude in Chrome | JS execution on admin pages |
 | Beds24 admin field writes | Claude in Chrome | Works for text fields and `customhead`; FAILS for `custombody`/`customheadconfirm` `<script>`/`<style>` tags |
 | Beds24 admin `<script>`/`<style>` writes | Manual paste by user | Only needed for `custombody` and `customheadconfirm` fields |
@@ -310,19 +327,17 @@ This is a per-property issue — every hostel with dorm rooms will have it. The 
 | Photo uploads | Manual by user | File picker inaccessible to automation |
 | Mobile QA | Manual on real iOS device | Cannot be automated |
 
-### Deployment Verification Protocol
+### First-Session Verification Protocol
 
-**Run this EVERY time a file is uploaded or a field is changed:**
+**Run this EVERY time you start a new session:**
 
 1. Navigate to each JS/CSS file URL in browser — confirm 200 (not 404) and correct content
-2. Check Beds24 `customhead` field has correct `<script src>` URL
-3. Check WordPress Custom HTML block has both `<div id="tnh-booking-root"></div>` AND `<script src>` tag
+2. Check Beds24 `customhead` field has Date.now() bootstrapper
+3. Check WordPress Custom HTML block has Date.now() bootstrapper
 4. Hard refresh the booking page
-5. Then test functionality
+5. Then start work
 
-**If step 1 fails:** File not uploaded, wrong path, or cached 404. Use a new version number or purge cache.
-**If step 2-3 fails:** Field/block was edited incorrectly. Re-enter.
-**Do NOT proceed to step 5 without passing steps 1-4.**
+**Do NOT proceed to debugging without passing steps 1-4.**
 
 ### Claude in Chrome Tips for Beds24
 

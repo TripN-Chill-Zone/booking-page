@@ -5,8 +5,9 @@
 ```
 ┌─────────────────────────────────┐
 │ External CSS file               │  ← All structural/aesthetic rules
-│ CSS-base-v{N}.css               │  ← No character limit
-│ Served via &cssfile= parameter  │  ← Versioned filenames for cache busting
+│ CSS-base.css                    │  ← Stable filename (no versioning)
+│ Served via &cssfile= parameter  │  ← Cache-busted by widget appending ?v=Date.now()
+│ Deployed via GitHub Actions     │  ← Push to main → auto-deploy to VPS
 └─────────────────────────────────┘
          ↓ loaded by Beds24 via URL parameter
 
@@ -137,9 +138,11 @@ The external CSS file is loaded as a `<link>` in the `<head>`, so it has lower s
 
 ## Hosting
 
-- Files hosted via aaPanel file manager on the VPS
-- Goes through Cloudflare CDN — caches aggressively
-- Use versioned filenames (`CSS-base-v1.css`, `CSS-base-v2.css`) to bust cache
-- Alternative: append `?v=N` query parameter (also works but less clean)
+- Files deployed automatically via GitHub Actions CI/CD on push to `main`
+- GitHub repo: `https://github.com/TripN-Chill-Zone/booking-page` (public)
+- VPS path: `/www/wwwroot/astrongpresence.com/`
+- Goes through Cloudflare CDN — cache bypassed by `?v=Date.now()` appended by widget
+- Stable filenames: `CSS-base.css`, `beds24-iframe-helper.js`, `booking-widget.js`
+- No manual uploads or versioned filenames needed
 - Current hosting domain: `astrongpresence.com` (root directory)
 - Future production domain: `tripnhostel.com` (not yet configured for assets)
