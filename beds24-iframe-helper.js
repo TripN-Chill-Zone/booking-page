@@ -197,10 +197,11 @@
       var group = document.createElement('span');
       group.className = 'tnh-book-group';
 
+      /* Total price — hidden until qty is selected */
       var totalEl = document.createElement('span');
       totalEl.className = 'tnh-total-price';
+      totalEl.style.display = 'none';
       if (total > 0) {
-        totalEl.textContent = currency + total.toFixed(2);
         totalEl.dataset.tnhTotal = total.toFixed(2);
         totalEl.dataset.tnhCurrency = currency;
       }
@@ -317,16 +318,30 @@
         var currentState = fromDiv.dataset.tnhState || '';
         var perNight = nights > 1 ? (total / nights) : total;
 
-        if (hasHidden && currentState !== 'total') {
-          /* Qty selected: fromDiv gets hidden class, show total in .tnh-total-price instead */
-          fromDiv.dataset.tnhState = 'total';
-          fromDiv.style.setProperty('display', 'none', 'important');
+        /* Always keep the from-price visible with per-night display */
+        if (currentState !== 'pernight') {
+          fromDiv.dataset.tnhState = 'pernight';
+          /* Override Beds24's .hidden class — from-price should always show */
+          fromDiv.style.setProperty('display', 'block', 'important');
+          fromDiv.classList.remove('hidden');
 
-          /* Update the .tnh-total-price element in the book group */
-          var offer = fromDiv.closest('.offer');
-          var totalEl = offer ? offer.querySelector('.tnh-total-price') : null;
-          if (totalEl) {
-            /* Try to get updated total from Beds24's price spans (may have changed after qty selection) */
+          if (nights > 1) {
+            fromDiv.innerHTML = '';
+            var mainSpan = document.createElement('span');
+            mainSpan.className = 'tnh-price-pernight-main';
+            mainSpan.textContent = 'from ' + currency + perNight.toFixed(2) + ' / night';
+            fromDiv.appendChild(mainSpan);
+          }
+        }
+
+        /* Show/hide total price based on qty selection */
+        var offer = fromDiv.closest('.offer');
+        var totalEl = offer ? offer.querySelector('.tnh-total-price') : null;
+        if (totalEl) {
+          if (hasHidden) {
+            /* Qty is selected — Beds24 added .hidden to fromDiv, show total */
+            /* Keep fromDiv visible (already handled above) but also show total */
+            fromDiv.style.setProperty('display', 'block', 'important');
             var updatedTotal = total;
             var rawDollars = fromDiv.querySelector('.bookingpagedollars');
             var rawCents = fromDiv.querySelector('.bookingpagecents');
@@ -337,19 +352,10 @@
             }
             totalEl.textContent = currency + updatedTotal.toFixed(2);
             totalEl.style.display = '';
-          }
-
-        } else if (!hasHidden && currentState !== 'pernight') {
-          /* No qty selected: show per-night price */
-          fromDiv.dataset.tnhState = 'pernight';
-          fromDiv.style.removeProperty('display');
-
-          if (nights > 1) {
-            fromDiv.innerHTML = '';
-            var mainSpan = document.createElement('span');
-            mainSpan.className = 'tnh-price-pernight-main';
-            mainSpan.textContent = 'from ' + currency + perNight.toFixed(2) + ' / night';
-            fromDiv.appendChild(mainSpan);
+          } else {
+            /* No qty selected — hide total */
+            totalEl.style.display = 'none';
+            totalEl.textContent = '';
           }
         }
       });
