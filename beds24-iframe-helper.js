@@ -197,14 +197,14 @@
       var group = document.createElement('span');
       group.className = 'tnh-book-group';
 
+      var totalEl = document.createElement('span');
+      totalEl.className = 'tnh-total-price';
       if (total > 0) {
-        var totalEl = document.createElement('span');
-        totalEl.className = 'tnh-total-price';
         totalEl.textContent = currency + total.toFixed(2);
         totalEl.dataset.tnhTotal = total.toFixed(2);
         totalEl.dataset.tnhCurrency = currency;
-        group.appendChild(totalEl);
       }
+      group.appendChild(totalEl);
 
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -326,7 +326,17 @@
           var offer = fromDiv.closest('.offer');
           var totalEl = offer ? offer.querySelector('.tnh-total-price') : null;
           if (totalEl) {
-            totalEl.textContent = currency + total.toFixed(2) + ' total';
+            /* Try to get updated total from Beds24's price spans (may have changed after qty selection) */
+            var updatedTotal = total;
+            var rawDollars = fromDiv.querySelector('.bookingpagedollars');
+            var rawCents = fromDiv.querySelector('.bookingpagecents');
+            if (rawDollars && rawCents) {
+              var d = parseInt(rawDollars.textContent, 10);
+              var c = parseInt(rawCents.textContent.replace('.', ''), 10) || 0;
+              if (!isNaN(d)) updatedTotal = d + (c / 100);
+            }
+            totalEl.textContent = currency + updatedTotal.toFixed(2);
+            totalEl.style.display = '';
           }
 
         } else if (!hasHidden && currentState !== 'pernight') {
