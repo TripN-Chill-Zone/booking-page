@@ -161,7 +161,11 @@
     var gs = sel.querySelector('select[id^="naa"]');
     if (!gs) return;
     for (var i = 0; i < gs.options.length; i++) {
-      gs.options[i].text = gs.options[i].text.replace(/Guests?/g, function(m) { return m === 'Guest' ? 'Bed' : 'Beds'; });
+      if (i === 0 && (gs.options[i].value === '0' || gs.options[i].value === '')) {
+        gs.options[i].text = '-';
+      } else {
+        gs.options[i].text = gs.options[i].text.replace(/Guests?/g, function(m) { return m === 'Guest' ? 'Bed' : 'Beds'; });
+      }
     }
     var controls = bar.querySelector('.tnh-offer-controls');
     if (!controls) return;
