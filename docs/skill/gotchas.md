@@ -1,6 +1,6 @@
 # Beds24 Booking Page — Known Gotchas
 
-Hard-won lessons from Sessions 5-7. Read this before making changes.
+Hard-won lessons from Sessions 5-10. Read this before making changes.
 
 ## CSS Field Limits
 
@@ -26,15 +26,17 @@ Unlike the BODY and confirmation fields, "Insert in HTML <HEAD> bottom" preserve
 
 The external CSS/JS files are served through Cloudflare. Cloudflare caches static assets aggressively.
 
-**Solution:** Use versioned filenames (`CSS-base-v1.css`, `CSS-base-v2.css`, etc.) for every update. Cloudflare development mode bypasses cache but eventually expires.
+**Solution:** The widget and Beds24 bootstrapper both append `?v=Date.now()` to file URLs, bypassing Cloudflare cache on every load. This is intentional for the dev phase. For production, consider using a fixed version query param that only changes on deploy.
+
+**Note:** When loading the Beds24 page directly (not via widget), the `&cssfile=` parameter has no cache-busting suffix. Cloudflare may serve a stale version. Append `?v=XXXXX` manually to the URL for testing.
 
 ## Cloudflare / LiteSpeed Cache 404 Responses
 
 If a file URL is requested before the file is uploaded, the 404 response gets cached. Even after uploading, subsequent requests may return the cached 404.
 
 **Solutions:**
-- Use versioned filenames (already the convention)
-- Purge cache after uploading new files
+- With CI/CD and stable filenames, this is less likely (files are overwritten, not created fresh)
+- If it happens: purge Cloudflare cache or append a unique query param
 - Never request a URL before the file exists at that path
 
 ## Collapsed Content Wrappers
@@ -146,13 +148,13 @@ Setting `body.style.height` to a calculated value risks content clipping and cre
 
 ## WordPress Custom HTML Block: Don't Lose the Div
 
-The Custom HTML block must contain both the container div AND the script tag:
+The Custom HTML block must contain both the container div AND the bootstrapper script:
 ```html
 <div id="tnh-booking-root"></div>
-<script src="https://astrongpresence.com/booking-widget-v6.js"></script>
+<script>var s=document.createElement('script');s.src='https://astrongpresence.com/booking-widget.js?v='+Date.now();document.head.appendChild(s);</script>
 ```
 
-When editing to update the script URL, verify both lines are present after saving.
+When editing, verify both lines are present after saving. The bootstrapper uses `Date.now()` for cache busting — the URL never needs updating.
 
 ## WordPress Caching Serves Stale Widget
 
@@ -195,3 +197,54 @@ The user cannot see field IDs like `customhead` or `custombody`. Use the names v
 - `custombody` → "Insert in HTML <BODY> bottom"
 - `bookingcss` → "Custom CSS"
 - `customheadconfirm` → confirmation page HEAD field
+
+## iOS Safari Iframe Viewport Expansion
+
+Bootstrap's `.container` class sets fixed widths at desktop breakpoints (750px, 970px, 1170px). Inside an iframe on iOS Safari, any content wider than the phone screen causes the iframe to expand beyond the viewport width. CSS `@media (max-width: 767px)` then fails to trigger because the iframe reports the wider width.
+
+**Solution:** Inject `.container{max-width:100%!important;width:auto!important;box-sizing:border-box!important}` and `.row{max-width:100%!important}` via the helper's inline style injection (Section 1). This must load before any content renders.
+
+**This was the root cause of all mobile layout failures in Session 10.** The media query breakpoint worked on desktop but never triggered on mobile because the iframe was expanded to Bootstrap's 1170px container width.
+
+## jQuery Event Handlers Survive DOM Moves
+
+jQuery stores event handlers via an expando property on the element itself (not by DOM position). When you move an element with `appendChild` or `insertBefore`, the jQuery handlers travel with it and continue to fire correctly.
+
+**Verified in Session 10:** The qty select `sr1-{roomId}` has 2 direct jQuery change handlers. Moving the element to a temp div and back preserved all handlers (2→2→2). Beds24's change handler still fired after the move, toggling `.hidden` on the from-div.
+
+**Consequence:** When rebuilding the offer bar, MOVE Beds24's form elements (never clone). `cloneNode` does NOT copy jQuery expando data, so cloned elements lose their handlers.
+
+**Also:** Move `.b24-multipricebox` as a whole unit, not the bare `<select>`. This preserves Beds24's `.closest('.b24-multipricebox')` traversals inside its own handlers.
+
+## Beds24 Loads All Rooms Into One AJAX Wrapper
+
+Beds24 renders 4 separate `#ajaxroomoffer{roomId}` wrapper divs as direct children of `.b24fullcontainer-rooms .container`. But after AJAX room loading, all `.b24room` elements end up inside a single wrapper (`#ajaxroomoffer567219` for the Chill Zone property). The other wrappers are empty.
+
+**Consequence:** CSS `order` on the `#ajaxroomoffer` wrapper divs has no effect because only one wrapper has content. Room sorting must use DOM reordering on `.b24room` elements within their shared parent, not CSS order on wrappers.
+
+## `div#selectors1-{roomId}` Wrapper in Offer Bar
+
+The live DOM has an extra wrapper `div#selectors1-{roomId}` between `.multiroomshow` and `.b24-multipricebox` that is not documented in the mockup or earlier DOM references. This wrapper:
+- Has no class (just an ID)
+- Gets `class="hidden"` when the room is unavailable
+- Collapses to 0 width unless explicitly styled
+- Must be made `display:flex; flex:1; width:100%` for the offer bar layout to work
+
+**Also:** When a room is unavailable, this wrapper gets `.hidden` class from Beds24. Any CSS that forces `display:flex` on it must also have a `.hidden` override: `[id^="selectors"].hidden { display: none !important; }`.
+
+## Beds24 Admin AJAX Save Is Unreliable via Automation
+
+Clicking the Save button via Claude in Chrome or setting the field value programmatically sometimes doesn't persist. The save appears to succeed but reloading the page shows the old value.
+
+**Solution:** Always reload the admin page after saving and verify the field contains the expected value. For the Room Order setting specifically, use `$('#settingformid').submit()` via jQuery rather than clicking the button.
+
+## GitHub Actions CI/CD
+
+Deployment is automated via GitHub Actions. Push to `main` triggers SCP of `CSS-base.css`, `beds24-iframe-helper.js`, and `booking-widget.js` to VPS. Deploy takes ~15 seconds.
+
+- VPS SSH on port 5771 (not default 22)
+- SSH key auth (ed25519 key in GitHub Secrets as `VPS_SSH_KEY`)
+- Secrets: `VPS_HOST`, `VPS_PORT`, `VPS_PATH`, `VPS_SSH_KEY`
+- Workflow file: `.github/workflows/deploy.yml`
+- Only triggers on changes to the 3 deploy files (not docs or other files)
+

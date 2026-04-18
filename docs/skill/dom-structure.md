@@ -51,6 +51,15 @@ body.colorbody.colorbody-en.layout6
 Previous documentation incorrectly identified `#b24scroller` as the room container.
 It is the **booking strip**. The room container is `.b24fullcontainer-rooms`.
 
+## CRITICAL: Beds24 Loads All Rooms Into One AJAX Wrapper
+
+The page structure shows separate `#ajaxroomoffer{roomId}` wrappers per room. However, after AJAX room loading, **all `.b24room` elements end up inside a single wrapper** (e.g., `#ajaxroomoffer567219`). The other `#ajaxroomoffer` wrappers remain in the DOM but are empty.
+
+This means:
+- CSS `order` on `#ajaxroomoffer` wrappers has no effect for sorting
+- Room sorting must use DOM reordering on `.b24room` elements within their shared parent
+- The parent of all `.b24room` elements is the single populated `#ajaxroomoffer` div, not `.b24fullcontainer-rooms .container`
+
 ## Room Card Structure
 
 ```
@@ -67,18 +76,19 @@ div.b24room#roomid{roomId}
       │      div.row                                     ← offer modules row
       │        div.b24-offer-select.b24-offer--o{roomId}-1
       │        │  div.multiroomshow
-      │        │    div.b24-multipricebox.pull-right      ← MAIN PRICE BOX
-      │        │      div.form-inline
-      │        │        span.roomofferqtyselectlabel ("Select")
-      │        │        select#sr1-{roomId}              ← QTY DROPDOWN
-      │        │        (or input[type=hidden] for dorms)
-      │        │      div#from-1-{roomId}                ← "from €XX" price (KEEP)
-      │        │      div#price-1-1-{roomId}             ← per-occupancy (HIDE)
-      │        │      div#price-2-1-{roomId}             ← per-occupancy (HIDE)
-      │        │      div#price-3-1-{roomId}             ← per-occupancy (HIDE)
-      │        │      select#naa1-1-{roomId}             ← guest count (HIDE)
-      │        │      [button.tnh-book-btn]              ← INJECTED by helper v14
-      │        │    div.multiplebookbutton               ← Book button container
+      │        │    div#warn-1-{roomId}.hidden.ajaxroomwarn.at_offerwarndiv  ← UNAVAILABLE WARNING
+      │        │    div#selectors1-{roomId}              ← SELECTORS WRAPPER (no class; gets .hidden when unavailable)
+      │        │      div.b24-multipricebox.pull-right   ← MAIN PRICE BOX
+      │        │        div.form-inline
+      │        │          span.roomofferqtyselectlabel ("Select") ← hidden by Beds24 in multi-room mode
+      │        │          select#sr1-{roomId}            ← QTY DROPDOWN
+      │        │          (or input[type=hidden] for dorms)
+      │        │        div#from-1-{roomId}              ← "from €XX" price (Beds24 toggles .hidden on qty change)
+      │        │        div#price-1-1-{roomId}           ← per-occupancy (HIDE)
+      │        │        div#price-2-1-{roomId}           ← per-occupancy (HIDE)
+      │        │        div#price-3-1-{roomId}           ← per-occupancy (HIDE)
+      │        │        select#naa1-1-{roomId}           ← guest count (HIDE for private, MOVE for dorms)
+      │        │    div.multiplebookbutton               ← Book button container (strip only, NOT per-room)
       │        │      button.at_bookingbut               ← Book button
       │        │    div.b24-multipricebox.hidden          ← PER-OCCUPANCY BOX (hidden)
       │        │    div.b24-multipricebox.hidden          ← PER-OCCUPANCY BOX (hidden)
