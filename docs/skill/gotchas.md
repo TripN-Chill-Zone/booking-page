@@ -1,12 +1,37 @@
 # Beds24 Booking Page — Known Gotchas
 
-Hard-won lessons from Sessions 5-10. Read this before making changes.
+Hard-won lessons from multiple sessions. Read this before making changes.
 
 ## CSS Field Limits
 
 **The "Custom CSS" inline field silently rejects saves above ~18-19K characters.** There is no error message. The save appears to succeed, but on reload the field contains the old content.
 
 **Solution:** Keep "Custom CSS" under 2K. Put all real CSS in the external file.
+
+## Iframe Width Is Controlled by the Widget, Not WordPress or Beds24
+
+The Beds24 iframe's rendering width is determined entirely by the `.tnh-booking-widget` `max-width` CSS rule in `booking-widget.js`. Neither WordPress (any theme), the Kadence page template, nor any Beds24 admin setting controls this.
+
+**Verified Session 12 (2026-04-21)** via a five-test sweep:
+- Widget JS: iframe width is `100%` of `.tnh-results-frame-wrap` content area. No explicit width attribute set.
+- WordPress/Kadence: zero width constraint anywhere in the DOM chain from `<body>` down to `#tnh-booking-root`.
+- Beds24 admin: no width/iframe/embed/viewport field exists. No URL parameter affects rendering width.
+
+**The formula:**
+
+```
+iframe_width = min(viewport_width, widget.max-width) - 2px
+```
+
+The 2px accounts for the 1px border on each side of `.tnh-results-frame-wrap`.
+
+**Current value:** `.tnh-booking-widget { max-width: 1290px }` (set in v3 to match Kadence `--global-content-width`).
+
+**Consequence:** If a future session needs to change the iframe rendering width (e.g., for a property whose theme has a different content width), the only knob is the widget's `max-width`. Do not look for WordPress or Beds24 controls — they don't exist.
+
+**Beds24's mobile breakpoint is 767px.** With max-width 1290px:
+- Viewport ≤769px → iframe ≤767px → Beds24 mobile CSS fires
+- Viewport ≥770px → iframe ≥768px → Beds24 desktop CSS fires
 
 ## Tag Stripping on Programmatic Save
 
@@ -18,9 +43,9 @@ Hard-won lessons from Sessions 5-10. Read this before making changes.
 
 Unlike the BODY and confirmation fields, "Insert in HTML <HEAD> bottom" preserves `<script>` and `<style>` tags on save. This is the correct field for loading external JS via `<script src="...">`.
 
-## `#b24scroller` is NOT the Room Container
+## DOM Structure Gotchas
 
-`#b24scroller` is the **booking strip** element. The room container is `.b24fullcontainer-rooms`.
+Selector pitfalls, DOM hierarchy surprises, and selectors-you-want-to-use live in `dom-structure.md`. Critical DOM behaviors (AJAX wrapper consolidation, `#selectors1-{roomId}` wrapper, Bootstrap classes) are documented there with full context. This file covers interaction, save, deployment, and environment gotchas.
 
 ## Cloudflare Caching
 
@@ -57,6 +82,19 @@ Since we hide fakelinks, we must force these wrappers open:
 MCP tabs may have `window.innerWidth = 0` and `window.innerHeight = 0`. This causes all Bootstrap grid columns, images, carousels, and flex layouts to collapse to 0.
 
 **Width-dependent layout testing is unreliable in MCP tabs.** Use user screenshots for visual verification. Selector matching, element existence, and text content queries all work normally.
+
+## Media Queries Fire on Viewport Width, Not Container Width
+
+CSS `@media (max-width: 767px)` responds to the browser viewport width, not to any container's width. Constraining a wrapper div's `max-width` via JS or CSS does NOT trigger `@media` rules.
+
+**Consequences:**
+
+- In `docs/mockup.html`, the device-simulation dropdown that sets `max-width: 390px` on a wrapper does NOT fire the mobile CSS. The mockup must be tested by resizing the actual browser window or using Chrome DevTools device mode.
+- When testing CSS changes at specific widths, use Chrome DevTools device mode (Cmd+Shift+M / Ctrl+Shift+M) or resize the browser window. Do not use container-width simulations.
+
+**For the iframe specifically:** the iframe has its own viewport. Media queries inside the iframe fire based on the iframe's actual pixel width. See "Iframe Width Is Controlled by the Widget" for what determines that.
+
+**Caused three wasted mockup iterations in Session 10** — v9, v10, and v11 were each rewritten to "fix" mobile CSS that was already correct. The testing method was wrong, not the CSS.
 
 ## Dorm Room Hidden Input
 
@@ -148,13 +186,16 @@ Setting `body.style.height` to a calculated value risks content clipping and cre
 
 ## WordPress Custom HTML Block: Don't Lose the Div
 
-The Custom HTML block must contain both the container div AND the bootstrapper script:
+The Custom HTML block must contain both the container div AND the bootstrapper script, along with the widget config:
 ```html
 <div id="tnh-booking-root"></div>
+<script>
+window.TNH_WIDGET_CONFIG = { /* schema v1 */ };
+</script>
 <script>var s=document.createElement('script');s.src='https://astrongpresence.com/booking-widget.js?v='+Date.now();document.head.appendChild(s);</script>
 ```
 
-When editing, verify both lines are present after saving. The bootstrapper uses `Date.now()` for cache busting — the URL never needs updating.
+When editing, verify all three elements (div, config script, bootstrapper script) are present after saving. The bootstrapper uses `Date.now()` for cache busting — the URL never needs updating.
 
 ## WordPress Caching Serves Stale Widget
 
@@ -166,7 +207,27 @@ WordPress page caching (LiteSpeed, Cloudflare, or browser cache) can serve an ol
 
 When `bookpageallowmulti = 1`, the only `.multiplebookbutton` elements (2 of them) are in the booking strip area, not inside room cards.
 
-Per-room Book buttons must be injected via JS (helper v14, Section 4).
+Per-room Book buttons must be injected via JS (helper Section 4).
+
+## Helper Halts If Config Is Missing (No Hardcoded Fallback)
+
+`beds24-iframe-helper.js` reads per-property data (room IDs, tags, isDorm flags) from `window.TNH_CONFIG`. If this object is missing, malformed, or has the wrong `schemaVersion`, the helper **halts with a console error** rather than falling back to defaults.
+
+**Symptom:** Booking page renders without tags, Book buttons, or price formatting. Room cards show Beds24's raw output.
+
+**Debugging:**
+1. Open console on the booking page (or inside the iframe via DevTools frame selector)
+2. Look for: `[TNH] No valid config found (window.TNH_CONFIG missing or invalid). Helper halted.`
+3. If present: check the property's Beds24 `customhead` field ("Insert in HTML <HEAD> bottom") for the config block
+
+**Common causes:**
+- `customhead` was edited via Claude in Chrome and Beds24 silently dropped the save (verify reload)
+- Config has `schemaVersion: 0` or is missing the field
+- `rooms` is not an array (e.g., accidentally written as an object)
+
+**No fallback by design.** The helper is property-agnostic product code. A silent fallback to Chill Zone data in another property would show wrong tags to that property's guests. Fail-loud is the safer behavior.
+
+The same pattern applies to the widget: `booking-widget.js` halts if `window.TNH_WIDGET_CONFIG` is missing or invalid.
 
 ## "Insert in HTML <BODY> bottom" Character Limit
 
@@ -182,8 +243,8 @@ Two MutationObservers on `document.body` with `subtree:true` where one callback 
 
 **Debugging order:**
 1. File accessible? (navigate to URL, confirm 200, confirm correct content and version)
-2. Beds24 "Insert in HTML <HEAD> bottom" field correct? (right script src)
-3. WordPress block correct? (both `<div>` and `<script>` present, correct version)
+2. Beds24 "Insert in HTML <HEAD> bottom" field correct? (right script src, config object present)
+3. WordPress block correct? (all three elements: `<div>`, config script, bootstrapper script)
 4. Hard refresh (Ctrl+Shift+R)
 5. Then test functionality
 
@@ -247,4 +308,3 @@ Deployment is automated via GitHub Actions. Push to `main` triggers SCP of `CSS-
 - Secrets: `VPS_HOST`, `VPS_PORT`, `VPS_PATH`, `VPS_SSH_KEY`
 - Workflow file: `.github/workflows/deploy.yml`
 - Only triggers on changes to the 3 deploy files (not docs or other files)
-

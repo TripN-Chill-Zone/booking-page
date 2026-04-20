@@ -1,141 +1,316 @@
 # Beds24 Booking Page — Context Document
 
-This document records the architectural decisions, rationale, and project history for handoff between sessions or team members. The execution plan is the separate document — defer to it for what to do. This document explains why.
+Architectural decisions, rationale, and project history. The 
+execution plan is the separate document — defer to it for *what* to 
+do. This document explains *why*.
 
-> **Session 10 update:** Deployment model changed from versioned filenames + manual aaPanel upload to stable filenames + GitHub Actions CI/CD. References to `v{N}` filenames throughout this document reflect the historical convention. Current deployment uses stable filenames (`CSS-base.css`, `beds24-iframe-helper.js`, `booking-widget.js`) with `Date.now()` cache busting. See `docs/session-handoff-10.md` for current state.
+> **Session 11 update (2026-04-21):** Widget max-width widened from 
+> 700px to 1290px (matches Kadence `--global-content-width`) after 
+> diagnostic testing established that the widget's max-width is the 
+> sole knob controlling iframe rendering width. Helper and widget 
+> both externalized to read per-property config from 
+> `window.TNH_CONFIG` and `window.TNH_WIDGET_CONFIG` respectively — 
+> shared code, no per-property variants. Phase 3 work-in-progress 
+> was aborted after multiple proposal rounds and reverted to 
+> pre-rebuild state. See `docs/retrospective.md` for the failure 
+> mode and `docs/session-handoff-11.md` for implementation details.
+
+> **Session 10 update:** Deployment model changed from versioned 
+> filenames + manual aaPanel upload to stable filenames + GitHub 
+> Actions CI/CD. Current deployment uses `CSS-base.css`, 
+> `beds24-iframe-helper.js`, `booking-widget.js` with `Date.now()` 
+> cache busting (dev only).
 
 ---
 
-## Decisions That Are Final
+## Decisions that are final
 
-- **Controlled iframe for room display, breakout for checkout** is the architecture. The Beds24 booking page is loaded in an iframe on the WordPress property site for room browsing. When the guest clicks Book, `form.target="_top"` breaks out of the iframe and Beds24 checkout takes over the full browser tab. Back button returns to WordPress.
-- **The Beds24 WordPress plugin's iframe embed was rejected.** It caused iOS double-scroll issues and provided no control over the booking flow. Our custom widget replaces it.
-- **Full iframe flow (booking through confirmation inside iframe) was rejected.** The confirmation page rendered at wrong scroll position, height sync broke on page transitions, and the checkout experience was degraded.
-- **Direct Beds24 page (no iframe at all) was the original architecture (Sessions 1-5).** It was reconsidered in Session 6 because the client wanted rooms to appear inline on the WordPress page rather than opening a new tab. The hybrid approach preserves inline room display while avoiding iframe complications for checkout.
-- **SPA is last resort only** — understood to be a different project with a different scope and budget.
-- Beds24 admin configuration is manual. Claude in Chrome is for content extraction from WordPress sites, CSS authoring, and Beds24 admin field inspection.
+### Architecture
+- **Controlled iframe for room display, breakout for checkout** is 
+  the architecture. Beds24 booking page loads in an iframe on the 
+  WordPress property site. On Book click, `form.target="_top"` 
+  breaks out so Beds24 checkout takes the full browser tab. Back 
+  button returns to WordPress.
+- **The Beds24 WordPress plugin's iframe embed was rejected.** iOS 
+  double-scroll, no control over booking flow.
+- **Full iframe flow (through confirmation) was rejected.** 
+  Confirmation page scroll position, height sync failures, degraded 
+  checkout experience.
+- **Direct Beds24 page (no iframe) was rejected after being tried.** 
+  Client wanted rooms inline on WordPress.
+- **SPA is last resort only** — different project scope.
+
+### Code sharing
+- **Helper JS is shared across all properties.** Per-property data 
+  comes from `window.TNH_CONFIG`. Helper halts with console error 
+  if config is missing or invalid. No hardcoded fallback.
+- **Widget JS is shared across all properties.** Per-property data 
+  comes from `window.TNH_WIDGET_CONFIG`. Widget halts with console 
+  error if config is missing or invalid. No hardcoded fallback.
+- **External `CSS-base.css` is shared across all properties.** 
+  Per-property theming via CSS variable overrides in each property's 
+  "Custom CSS" field.
+
+### Widget sizing
+- **Widget max-width: 1290px.** Matches Kadence content width. This 
+  is the sole knob controlling iframe rendering width — no 
+  WordPress, Kadence, or Beds24 admin setting affects iframe width. 
+  Verified Session 11 via five-test diagnostic sweep.
+- **iframe width formula:** `min(viewport, widget.max-width) - 2px`
+- **Beds24's mobile breakpoint is 767px.** With widget at 1290px, 
+  iPhone portrait gets Beds24 mobile CSS; iPhone landscape and 
+  wider get Beds24 desktop CSS.
+
+### Rendering
+- **Iframe loading must use `opacity:0`, not `display:none`.** 
+  `display:none` prevents content rendering inside the iframe, 
+  causing height measurements to return 0 and the loading spinner to 
+  persist indefinitely. Discovered Session 7.
+- **Date strip cells are non-clickable.** Beds24's delegated click 
+  handlers navigate to unstyled pages. Blocked via 
+  `pointer-events: none` in helper JS.
+- **Color overrides for Beds24 Style panel colors must be injected 
+  via helper JS**, not just external CSS. The Style panel generates 
+  inline `<style>` blocks that load after external CSS and win at 
+  equal specificity.
+
+### Workflow
+- Beds24 admin configuration is manual. Claude in Chrome is for 
+  content extraction, CSS/JS authoring via Claude Code, and Beds24 
+  admin inspection.
 - Multiple booking stays enabled. Price-per-cell behavior is accepted.
 - No time estimates anywhere.
 - American spelling throughout.
-- **Iframe loading must use `opacity:0` not `display:none`.** `display:none` prevents content rendering inside the iframe, causing height measurements to return 0 and the loading spinner to persist indefinitely on desktop. Discovered in Session 7.
-- **Date strip cells are non-clickable.** Beds24's delegated click handlers navigate to unstyled pages. Blocked via `pointer-events: none` in helper JS.
-- **Color overrides for Beds24 Style panel colors must be injected via helper JS**, not just external CSS. The Style panel generates inline `<style>` blocks that load after external CSS and win at equal specificity.
-- **Use Beds24 admin field names when communicating with the user** (e.g., "Insert in HTML <HEAD> bottom" not `customhead`).
+- **Use Beds24 admin field names when communicating with the user** 
+  ("Insert in HTML <HEAD> bottom" not `customhead`).
 
 ---
 
-## Architecture Summary
+## Architecture summary
 
-**Guest flow:** WordPress "Book A Room" page → guest enters dates and guest count in custom widget → clicks "Search Rooms" → Beds24 booking page loads in iframe below widget (booking strip/headers/footer hidden by helper script) → guest sees rooms with per-room Book buttons → clicks Book → `form.target="_top"` breaks out of iframe → Beds24 checkout takes over full browser tab → guest completes booking → back button returns to WordPress page.
+**Guest flow:** WordPress "Book A Room" page → guest enters dates 
+and guest count in custom widget → clicks "Search Rooms" → Beds24 
+booking page loads in iframe below widget (booking strip/headers/
+footers hidden by helper) → guest sees rooms with per-room Book 
+buttons → clicks Book → `form.target="_top"` breaks out of iframe → 
+Beds24 checkout takes full browser tab → guest completes booking → 
+back button returns to WordPress page.
 
-**WordPress widget role:** Date/guest collection AND room display host. The widget (`booking-widget-v{N}.js`) is a self-injecting JS file hosted on the VPS. It renders the date picker, creates an iframe pointing to the Beds24 booking page with `referer=widget` parameter, listens for `postMessage` height reports from the iframe, and manages the loading spinner. The widget is loaded via a WordPress Custom HTML block:
+**Widget role:** Date/guest collection AND room display host. The 
+widget (`booking-widget.js`) is a self-injecting JS file. It reads 
+`window.TNH_WIDGET_CONFIG` for per-property data, renders the date 
+picker, creates an iframe pointing to Beds24 with `referer=widget` 
+parameter, listens for `postMessage` height reports, and manages the 
+loading spinner. Loaded via WordPress Custom HTML block with 
+inline config:
+
 ```html
 <div id="tnh-booking-root"></div>
-<script src="https://{domain}/booking-widget-v{N}.js"></script>
+<script>window.TNH_WIDGET_CONFIG = { /* schema v1 */ };</script>
+<script src="https://{domain}/booking-widget.js?v=..."></script>
 ```
 
-**Beds24 helper role:** The iframe helper (`beds24-iframe-helper-v{N}.js`) is loaded via the `customhead` field on the Beds24 Developer page. When it detects `referer=widget` in the URL and is inside an iframe, it:
-1. Hides booking strip, property headers/footers, bottom summary bar (our widget handles these)
-2. Reports page height to parent via `postMessage` for iframe sizing
-3. Sets `form.target="_top"` so checkout breaks out of iframe
-4. Injects per-room Book buttons (Beds24 multi-room mode has NONE per-room)
-5. Fixes dorm room booking (unhides guest selector, relabels "Guests" → "Beds")
+**Helper role:** The iframe helper (`beds24-iframe-helper.js`) is 
+loaded via Beds24 "Insert in HTML <HEAD> bottom". It reads 
+`window.TNH_CONFIG` for per-property data. When it detects 
+`referer=widget` inside an iframe, it:
+1. Hides booking strip, property headers/footers, bottom summary bar
+2. Reports page height to parent via `postMessage`
+3. Sets `form.target="_top"` so checkout breaks out
+4. Injects per-room Book buttons
+5. Fixes dorm room booking
+6. Applies date strip color overrides
+7. Formats price display
+8. Reorders rooms by price
+
+See `docs/skill/helper-js-architecture.md` for full section 
+inventory.
 
 **CSS architecture:**
-- External file (`&cssfile=`): structural rules and aesthetics via CSS variables.
-- Per-property theming: small variable override block in each property's inline Beds24 `bookingcss` field.
-- Critical CSS for FOUC prevention: pasted into `bookingcss` field. Limited to layout-shift-preventing properties only.
-- Rollback: update `&cssfile=` version reference or `<script src>` version reference. Use versioned filenames.
+- External `CSS-base.css`: structural rules and aesthetics via CSS 
+  variables
+- Per-property theming: variable overrides in each property's 
+  inline "Custom CSS" field
+- Critical FOUC prevention CSS: in "Custom CSS" field (under 2K chars)
 
-**JS architecture:**
-- Widget JS: hosted on VPS, loaded via WordPress Custom HTML block. Self-injects CSS/HTML/logic.
-- Iframe helper JS: hosted on VPS, loaded via Beds24 `customhead` field. Only activates when `referer=widget` AND inside iframe.
-- Hide/reveal rooms (legacy, in `custombody`): `MutationObserver` on room container, activates only when `checkin` parameters present. 10-second backstop timeout.
-- Per-room Book buttons: injected by helper JS into `.b24-multipricebox` of each `.offer` section.
-- `customhead` does NOT strip `<script>` tags — use it for external JS loading.
-- `custombody` DOES strip `<script>` tags on programmatic save — must paste manually. ~2,000 char limit.
-
-**Fallback hierarchy:** Styled Beds24 in iframe → Direct Beds24 page (new tab) → SPA (different project).
+**Fallback hierarchy:** Styled Beds24 in iframe → Direct Beds24 
+page (new tab) → SPA (different project).
 
 ---
 
-## Key Technical Decisions and Their Rationale
+## Key technical decisions and their rationale
 
-**Why controlled iframe instead of direct Beds24 page (Session 6 revision):**
-The original architecture opened Beds24 in a new tab or same window. This was reconsidered when the client wanted rooms to appear inline on the WordPress page after searching. Three approaches were evaluated:
-1. **New tab** — rooms appear on a separate page, not inline. Rejected for UX.
-2. **Full iframe** — rooms and checkout both in iframe. Rejected because confirmation page rendered at wrong scroll position, height sync broke on page transitions, and the checkout form was unusable inside the iframe.
-3. **Iframe for display, breakout for checkout** — ADOPTED. Rooms display inline via iframe, `form.target="_top"` breaks out for checkout. Back button returns naturally. This eliminates the iOS double-scroll issue (iframe has `scrolling="no"`), keeps rooms inline on the WordPress page, and gives checkout the full browser tab.
+### Why controlled iframe instead of direct Beds24 page (Session 6)
 
-The original iframe concerns (iOS scroll, iFrame Resizer, cross-origin state, sessionStorage, bfcache, third-party cookies) are addressed differently in this approach: iOS scroll is eliminated by `scrolling="no"` + parent page scrolling; no iFrame Resizer needed (we use `postMessage` height sync); no cross-origin state management needed (checkout breaks out); no sessionStorage/bfcache concerns (no page transitions inside iframe); third-party cookies not relevant (no login/session state in the iframe).
+Original architecture opened Beds24 in a new tab or same window. 
+Reconsidered when the client wanted rooms to appear inline on 
+WordPress. Three options evaluated:
 
-**Why `form.target="_top"` instead of intercepting form submission:**
-The simplest reliable way to break out of an iframe. One line of JS, works on all browsers, preserves all of Beds24' form data and submission logic. The alternative (intercepting submit, constructing a URL, navigating parent) would require understanding Beds24' form fields and could break if they change.
+1. **New tab** — rooms on separate page. Rejected for UX.
+2. **Full iframe** — rooms and checkout both in iframe. Rejected 
+   because confirmation page rendered at wrong scroll, height sync 
+   broke on transitions, checkout form unusable in iframe.
+3. **Iframe for display, breakout for checkout** — ADOPTED.
 
-**Why `customhead` for external JS loading instead of `custombody`:**
-`custombody` strips `<script>` tags when saved programmatically via Claude in Chrome, requiring manual paste. `customhead` does NOT strip tags. Both fields inject into the page, but `customhead` is more reliable for automation and has no known character limit issue. `custombody` has a ~2,000 character limit.
+The original iframe concerns (iOS scroll, iFrame Resizer, 
+cross-origin state, sessionStorage, bfcache, third-party cookies) 
+are addressed differently: iOS scroll eliminated by `scrolling="no"` 
++ parent page scrolling; no iFrame Resizer (use `postMessage`); no 
+cross-origin state management (checkout breaks out); no session 
+storage concerns (no page transitions inside iframe); third-party 
+cookies not relevant (no login state in iframe).
 
-**Why MutationObserver instead of setTimeout for hide/reveal:**
-A fixed timeout is a race condition on slow connections. `setTimeout(3000)` will fire before Beds24 finishes rendering rooms on Slow 3G, prematurely revealing empty containers. The MutationObserver responds to what Beds24 actually renders. The 10-second backstop is a last-resort safeguard if the observer's target selector breaks due to a Beds24 DOM update.
+### Why `form.target="_top"` instead of intercepting form submission
 
-**Why critical-css-payload.css as a separate git file:**
-Critical CSS must be pasted into four separate Beds24 admin panels. Without a single source file, developers must manually extract the relevant subset from the external CSS — a process that introduces typos, missed properties, and version desync. The payload file eliminates this: paste the entire file, append variable overrides, done.
+Simplest reliable way to break out of an iframe. One line of JS, 
+works on all browsers, preserves all of Beds24's form data and 
+submission logic. The alternative (intercepting submit, constructing 
+URL, navigating parent) would require understanding Beds24's form 
+fields and could break if they change.
 
-**Why the CSS update protocol requires all four properties to pass staging:**
-A single external CSS file serves all four properties. A fix that works on one property but breaks another will affect all four in production. However, pre-existing failures unrelated to the CSS change (e.g., wrong content entry) do not block the push — the check confirms no new breakage, not that every property is passing for unrelated reasons.
+### Why "Insert in HTML <HEAD> bottom" for external JS loading
 
-**Why Phase 0.2 (price injection) is kept but expendable:**
-The adversarial review recommended killing it. The plan keeps it because the safeguards are already maximal: any discrepancy means immediate abandonment, and the JS must fail silently to no-display. The worst production outcome is identical to not building it. The decision to attempt it belongs to the client.
+The field does NOT strip `<script>` tags on programmatic save. 
+Alternative fields (`custombody`, `customheadconfirm`) DO strip 
+tags and require manual paste. `customhead` is also more reliable 
+for automation and has no known character limit issue.
+
+### Why MutationObserver instead of setTimeout
+
+A fixed timeout is a race condition on slow connections. 
+`setTimeout(3000)` fires before Beds24 finishes rendering on Slow 
+3G, prematurely revealing empty containers. The MutationObserver 
+responds to what Beds24 actually renders. A 10-second backstop is 
+a last-resort safeguard.
+
+### Why single MutationObserver with `isModifying` guard
+
+Two observers on the same subtree where both callbacks modify the 
+DOM create infinite mutation loops. Single observer with a re-entry 
+flag prevents this. Discovered during Session 6 when the page froze 
+inside the iframe.
+
+### Why shared helper/widget instead of per-property forks (Session 11)
+
+Per-property JS files would require deploying N files per property 
+and maintaining parallel copies. Every Beds24 DOM update would 
+require updating all N helpers. Shared files with config objects 
+mean one codebase to maintain; per-property variation lives in 
+inline config that each property's admin owns.
+
+Halt-on-missing-config is a deliberate design choice to prevent 
+client-specific fallbacks from contaminating shared product code. 
+If Chill Zone data were hardcoded as a fallback, shipping to 
+property 2 with a bad config would silently show Chill Zone's tags 
+to property 2's guests. Fail-loud is safer.
+
+### Why widget max-width 1290px (Session 11)
+
+Diagnostic testing established that the widget's max-width is the 
+sole knob controlling iframe rendering width. WordPress, Kadence, 
+and Beds24 admin impose zero width constraints. Prior value of 
+700px meant every user saw Beds24's mobile CSS regardless of their 
+device — the mockup's desktop layout was never rendering. 1290px 
+matches Kadence's `--global-content-width`, enabling desktop layout 
+on desktop devices while preserving mobile on iPhone portrait.
+
+Breakpoint analysis: widget at 1290px produces iframe widths from 
+388px (iPhone portrait viewport) up to 1288px (any viewport ≥1292px). 
+Beds24's 767px mobile breakpoint fires at iframe widths ≤767px — 
+iPhone portrait (388px) and narrow phones only. iPhone landscape 
+(842px iframe), tablets, and desktop all get Beds24 desktop CSS.
+
+### Why reverted to pre-rebuild state (Session 11)
+
+See retrospective 2026-04-21 entry "Offer bar rebuild skipped the 
+simplest candidate solution." Short version: a multi-round proposal 
+cycle produced three progressively complex architectures when the 
+actual fix was porting the existing mockup CSS plus one new rule. 
+The rebuild approach was abandoned and the helper reverted to 
+commit `420dd06` (pre-rebuild).
 
 ---
 
 ## Constraints
 
-- Multiple booking enabled → price per cell not shown in Price Table; populates after quantity selection
-- Photo uploads cannot be automated (file picker inaccessible to browser automation)
+- Multiple booking enabled → price per cell not shown in Price 
+  Table; populates after quantity selection
+- Photo uploads cannot be automated (file picker inaccessible to 
+  browser automation)
 - Mobile testing cannot be automated (requires real iOS device)
 - Beds24 admin configuration is manual
-- This architecture requires a developer to maintain post-launch — DOM-targeted CSS/JS will break when Beds24 updates their frontend
+- Post-launch maintenance requires a developer — DOM-targeted 
+  CSS/JS will break when Beds24 updates their frontend
 
 ---
 
-## Adversarial Review History
+## Adversarial review history
 
-The plan went through multiple rounds of adversarial review. Key issues raised and how they were resolved:
+Issues raised across multiple review rounds and their resolutions:
 
 | Issue | Resolution |
 |---|---|
-| Hide/reveal timeout fires prematurely on clean URL (no dates) | Timeout only arms when `checkin` parameters present |
-| setTimeout is a race condition on slow connections | Replaced with `MutationObserver` + 10s backstop |
-| Critical CSS creates two sources of truth | `critical-css-payload.css` in git as sole source; sync step in update protocol |
+| Hide/reveal timeout fires prematurely on clean URL | Timeout only arms when `checkin` parameters present |
+| setTimeout is a race condition on slow connections | Replaced with MutationObserver + 10s backstop |
+| Critical CSS creates two sources of truth | `critical-css-payload.css` in git as sole source |
 | Critical CSS scope too narrow for pre-populated arrivals | Expanded to include room card geometry |
 | Price injection JS could display broken data | Hard requirement: fail silently to no-display |
 | CSS update protocol blocks on unrelated property failures | Clause added: unrelated failures don't block |
-| Widget fallback described as "straightforward" but requires custom JS | Clarified: requires date parsing, `numnight` calculation, URL construction |
+| Widget fallback described as "straightforward" but requires custom JS | Clarified: requires date parsing, URL construction |
 | Live transaction triggers operational automations | Client responsibility to coordinate |
 | Post-launch maintenance handed to non-technical staff | Stated explicitly: requires developer on call |
 | One-way date handoff not documented | Added to Known Limitations |
+| Offer bar rebuild plan escalated across three proposals when simpler solution was available | Mockup-first validation rule added to retrospective; proposals archived to `docs/archive/`; v3 reverted to pre-rebuild state plus mockup CSS port |
 
 ---
 
-## What a New Session Should Request
+## What a new session should request
 
-- `CLAUDE.md` — project conventions, property/room IDs, file locations, widget architecture
-- `session-handoff-7.md` (or latest) — current state, what's working, what's broken
-- `beds24-execution.md` — execution plan (source of truth for phases)
-- `beds24-execution-context.md` — this document (architecture decisions and rationale)
-- `SKILL.md` — setup checklist, design spec, deployment protocol
-- `dom-structure.md` — complete DOM tree with verified selectors
-- `gotchas.md` — every known pitfall with solutions
-- `admin-guide.md` — Beds24 admin page types, field IDs, module reference
-- Property name, room types and counts for whichever property is being worked on
+The CLAUDE.md entry point specifies the canonical reading order. 
+Quick reference:
 
-Optional (upload on demand):
-- `css-architecture.md` — CSS variable system and file architecture detail
-- `beds24-admin-field-map.md` — full field-by-field admin detail
-- `beds24-template-variables.md` — for confirmation page work
-- `ux-review.md` — adversarial UX review with resolution status
+**Read every session:**
+- `CLAUDE.md` — entry point with conventions and file map
+- `docs/retrospective.md` — Active Rules take precedence over 
+  anything in this document
+- `docs/session-handoff-{N}.md` (latest) — current state
+- `docs/skill/SKILL.md` — working discipline
 
-**First action every session:** Verify all VPS-hosted files are accessible (navigate to URLs, confirm 200 response and correct content). Check Beds24 "Insert in HTML <HEAD> bottom" field and WordPress Custom HTML block match current versions. Do NOT start debugging functionality until deployment is confirmed.
+**Read when task requires:**
+- `docs/skill/dom-structure.md` — before writing selectors
+- `docs/skill/css-architecture.md` — before writing CSS
+- `docs/skill/helper-js-architecture.md` — before writing JS
+- `docs/skill/admin-guide.md` — before admin work
+- `docs/skill/property-config.md` — for per-property data and schema
+- `docs/skill/rollout-checklist.md` — for per-property onboarding
+- `docs/skill/gotchas.md` — known pitfalls
+- `docs/beds24-execution.md` — phase status
+- `docs/beds24-execution-context.md` — this document, for decisions
+- `docs/mockup.html` — design source of truth
 
-If in doubt, defer to the execution plan rather than reconstructing from conversation.
+**Archived (do not use as current truth):**
+- `docs/archive/*` — superseded plans and proposals
+
+**First action every session:** Read the retrospective's Active 
+Rules. Then read the current session handoff. Do NOT start debugging 
+functionality or making claims about prior work until these are read. 
+Browser tabs from previous sessions are leftover state, not 
+authoritative context.
+
+---
+
+## Changelog
+
+- **Session 11 (2026-04-21):** Added externalization decisions 
+  (`TNH_CONFIG`, `TNH_WIDGET_CONFIG`). Widget max-width updated 
+  from 700px to 1290px. Added rationale sections for shared 
+  helper/widget, widget sizing, and revert-to-pre-rebuild. Added 
+  row to adversarial review history for the rebuild cycle. Updated 
+  "What a new session should request" to reflect current skill 
+  folder structure.
+- **Session 10:** Deployment model changed to GitHub Actions CI/CD. 
+  Stable filenames replaced versioned filenames.
+- **Session 6:** Hybrid iframe + breakout architecture adopted 
+  after full-iframe flow rejected.
+- **Session 5:** CSS moved to external file after inline 
+  character-limit failure.

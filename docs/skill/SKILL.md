@@ -5,345 +5,265 @@ description: "Configure and style Beds24 booking pages for hostel properties. Us
 
 # Beds24 Booking Page — Skill Guide
 
-This skill covers everything needed to configure, style, and deploy custom booking pages on the Beds24 platform for hostel properties. It was built from hands-on experience configuring the Trip'N'Hostel Chill Zone property and is designed for rollout across multiple properties.
+This skill covers configuring, styling, and deploying custom booking 
+pages on the Beds24 platform for hostel properties. Built from 
+hands-on work on the Trip'N'Hostel Chill Zone property and designed 
+for rollout across multiple properties.
 
-## When to Read Reference Files
+The skill has two parts:
 
-Before doing any work, read the appropriate reference file:
-
-- **Starting a new property or resuming work**: Read `references/dom-structure.md` — the complete DOM map with verified selectors
-- **Writing or editing CSS**: Read `references/dom-structure.md` for selectors, then `references/css-architecture.md` for the file architecture and variable system
-- **Configuring Beds24 admin**: Read `references/admin-guide.md` for field IDs, page types, and known gotchas
-- **Debugging a layout issue**: Read `references/dom-structure.md` for the element hierarchy and `references/gotchas.md` for known pitfalls
-
----
-
-## Architecture Overview
-
-The booking page uses a two-part system: a custom JavaScript widget on the WordPress property site handles date/guest selection and displays rooms in an iframe. When the guest clicks Book, the Beds24 checkout page takes over the full browser tab. The guest completes booking on native Beds24, and the back button returns to the WordPress page.
-
-**The Beds24 WordPress plugin's iframe embed was rejected** due to iOS double-scroll issues and lack of control over the booking flow. Our custom widget replaces it entirely.
-
-### File Architecture
-
-```
-WordPress side:
-  Custom HTML block on "Book A Room" page:
-    <div id="tnh-booking-root"></div>
-    <script>var s=document.createElement('script');
-    s.src='https://astrongpresence.com/booking-widget.js?v='+Date.now();
-    document.head.appendChild(s);</script>
-  
-  The widget JS is self-contained — injects CSS, HTML, and all logic.
-  Hosted on VPS, stable filename, cache-busted by Date.now() in bootstrapper.
-
-Beds24 side:
-  customhead field (Insert in HTML <HEAD> bottom):
-    <script>var s=document.createElement('script');
-    s.src='https://astrongpresence.com/beds24-iframe-helper.js?v='+Date.now();
-    document.head.appendChild(s);</script>
-    NOTE: Uses Date.now() bootstrapper — never needs updating after initial setup.
-    NOTE: customhead does NOT strip <script> tags (unlike custombody).
-
-  customheadtop field (Insert in HTML <HEAD> top):
-    Google Fonts <link> tag — set once per property
-
-  bookingcss field (Custom CSS):
-    Critical CSS payload (FOUC prevention) + per-property variable overrides
-    HARD LIMIT: ~18-19K characters (saves silently fail above)
-    Keep under 2K — all real CSS goes in external file
-
-  custombody field (Insert in HTML <BODY> bottom):
-    Currently empty — all JS loaded via customhead bootstrapper
-    LIMIT: ~2,000 characters
-    IMPORTANT: strips <script> tags on programmatic save — must paste manually
-
-  External CSS file (served via &cssfile= URL parameter):
-    https://astrongpresence.com/CSS-base.css
-    Stable filename — cache-busted via ?v=Date.now() appended by widget JS
-    Contains: all structural rules, aesthetics, layout, responsive design
-    No character limit
-
-Deployment:
-  GitHub repo: https://github.com/TripN-Chill-Zone/booking-page (public)
-  CI/CD: Push to main → GitHub Actions SSHes to VPS → deploys 3 stable files
-  Files deployed: CSS-base.css, beds24-iframe-helper.js, booking-widget.js
-  Target: /www/wwwroot/astrongpresence.com/
-  No manual upload, no versioned filenames, no reference updates needed.
-```
-
-### Guest Flow
-
-```
-WordPress "Book A Room" page
-  → Guest enters dates + guests in widget
-  → Clicks "Search Rooms"
-  → Beds24 booking page loads in iframe below widget
-    (booking strip, headers, footer hidden by helper script)
-  → Guest sees room cards with photos, descriptions, prices
-  → Guest selects quantity and clicks per-room "Book" button
-  → form.target="_top" breaks out of iframe
-  → Beds24 checkout takes over full browser tab
-  → Guest completes booking on native Beds24
-  → Back button returns to WordPress "Book A Room" page
-```
-
-### Widget Configuration (Per-Property)
-
-The booking widget has a CONFIG block at the top:
-
-```javascript
-var CONFIG = {
-  ownerid: '141266',
-  propid:  '271142',
-  cssfile: 'https://astrongpresence.com/CSS-base.css',
-  minNights: 2,
-  maxNights: 90,
-  defaultNights: 2,
-  primaryColor: '#E7A35C',
-  secondaryColor: '#6DA17D',
-  // ... brand colors and fonts
-};
-```
-
-For rollout, create per-property widget files with updated CONFIG values. The widget appends `?v=Date.now()` to the cssfile URL for cache busting.
-
-### Iframe Helper Behavior
-
-The helper script (`beds24-iframe-helper-v{N}.js`) loaded via "Insert in HTML <HEAD> bottom" does different things depending on context:
-
-**When embedded via widget** (`referer=widget` in URL AND inside iframe):
-- Hides booking strip, property headers/footers, bottom summary bar, shopping cart
-- Reports page height to parent via `postMessage` (uses `getBoundingClientRect` on `.b24fullcontainer-rooms`)
-- Sets `form.target = '_top'` so checkout breaks out of iframe
-
-**Always** (whether embedded or direct visit):
-- Injects per-room orange Book buttons (Beds24 multi-room mode has NONE per-room)
-- Fixes dorm room booking (moves guest selector into main price box, relabels "Guests" → "Beds", hides orphan price box)
-- Injects date strip color overrides (green stay dates, light red unavailable, non-clickable cells, hidden header row)
-
-### Height Sync Between WordPress and Beds24
-
-The iframe has `scrolling="no"`. The helper reports height via `postMessage`. The widget receives these and sets iframe height.
-
-**Key rules:**
-- Use `getBoundingClientRect().bottom` on `.b24fullcontainer-rooms` — avoids counting hidden footer containers
-- Do NOT set `body.style.height` — risks clipping and self-referencing loops
-- `display:none` elements contribute 0 — hiding elements is sufficient
-- Widget shows loading spinner until reported height > 500px
-- 8-second fallback shows iframe at 2400px if no height message arrives
-- **CRITICAL: iframe must use `opacity:0` during loading, NOT `display:none`.** `display:none` prevents content rendering inside the iframe, making all height measurements return 0. This caused an 18-second loading delay on desktop (Session 7).
-
-### Deployment Protocol (CI/CD)
-
-All CSS and JS deployment is automated via GitHub Actions:
-
-1. Edit files locally or in Claude chat
-2. Commit and push to `main` branch of `https://github.com/TripN-Chill-Zone/booking-page`
-3. GitHub Actions auto-deploys changed files to VPS via SCP (~15 seconds)
-4. Hard refresh to verify (the Date.now() bootstrappers bypass all caches)
-
-**No manual file uploads, no versioned filenames, no Beds24 admin or WordPress updates needed.**
-
-The only time Beds24 admin or WordPress need editing is:
-- Initial property setup (one-time)
-- Changes to Beds24 content (room descriptions, prices, photos)
-- Changes to the `bookingcss` critical CSS payload
-
-### First-Session Verification Protocol
-
-**Run this on the first interaction of every new session:**
-
-1. Verify VPS files are accessible: navigate to `https://astrongpresence.com/CSS-base.css`, `beds24-iframe-helper.js`, `booking-widget.js` — confirm 200 and correct content
-2. Verify Beds24 `customhead` field has the Date.now() bootstrapper
-3. Verify WordPress Custom HTML block has the Date.now() bootstrapper
-4. Hard refresh the WordPress booking page and confirm rooms load
-5. Then start work
+1. **Working discipline** — how to approach work in this project. 
+   Read this first. Every session.
+2. **Project reference** — architecture, design target, Beds24 
+   platform knowledge, per-property setup. Consult as the task 
+   requires.
 
 ---
 
-## Design Target — Hostelworld Model
+## Part 1: Working discipline
 
-The booking page should feel like Hostelworld's room listing. Key principles:
+These rules exist because violations have cost time repeatedly. The 
+`docs/retrospective.md` Active Rules section is the canonical list; 
+this section states the underlying principles. If a rule seems 
+abstract, the retrospective entries show the concrete failures that 
+produced it.
 
-### Room Card Layout
+### 1.1 Separate measurements from inferences
+
+Every load-bearing claim in a prior session's plan, handoff, or 
+review is either a **measurement** (verified in-session by 
+inspecting code or measuring reality) or an **inference** 
+(conclusion drawn from earlier reasoning).
+
+Inferences that gate the current scope must be re-verified before 
+they're built on. If a proposal says "we can't do X because Y," and 
+Y is an inference, test whether Y is still true *this session* 
+before accepting the scope limit.
+
+The most expensive failures in this project came from sessions 
+inheriting unverified inferences and spending days on work that 
+solved a non-problem.
+
+### 1.2 Run the cheapest falsifying test first
+
+When a proposal's complexity feels disproportionate to the problem 
+described, identify the cheapest test that would falsify the 
+proposal's central premise, and run it before writing the proposal.
+
+Applied to this project: **if a design mockup exists, the cheapest 
+falsifying test is applying its CSS and JS to the live page and 
+measuring what breaks.** The mockup is a candidate implementation, 
+not a visual reference. The first question in any layout task is: 
+"does the mockup already produce this result on the live page?" If 
+yes, port it. If no, fix the specific gap.
+
+This rule also applies to architecture disputes, tooling claims, 
+and premise inheritance — if you can falsify it cheaply, do that 
+before proposing a fix.
+
+### 1.3 Let the bug get smaller before the fix gets bigger
+
+When successive rounds of review each surface information that makes 
+the problem look different, resist scoping up the fix. Usually the 
+problem is getting smaller, not larger. A fix that keeps growing 
+across diagnostic rounds is a sign the original framing was wrong, 
+not that more intervention is needed.
+
+If round 1 called for a DOM rebuild, round 2 called for mirror 
+controls, and round 3 called for a full layout redesign — pause. 
+Ask the question you haven't asked yet, rather than adding another 
+layer of architecture.
+
+### 1.4 Verify before debugging
+
+Before investigating why something doesn't work, confirm it's 
+actually running. This applies broadly:
+
+- **Deployed files:** URL returns 200 with correct content; every 
+  reference (Beds24 field, WordPress block, bootstrapper) points to 
+  the current version.
+- **Saved admin values:** reload the page and confirm persistence. 
+  Beds24 has silent failure modes (character limits, tag stripping, 
+  AJAX save failures).
+- **Assumed context:** uploaded docs and handoff notes, not leftover 
+  browser tabs from prior sessions. Tab state is not authoritative.
+
+If the state you're debugging against isn't the state you think it 
+is, every downstream step is wasted. See `gotchas.md` for specific 
+failure modes.
+
+### 1.5 Plan the flow before coding the pieces
+
+For multi-step flows (user flows, deployment chains, composed 
+features), map the complete flow and identify architectural 
+constraints before implementing pieces. Testing components in 
+isolation and finding at integration time that they don't compose 
+is more expensive than upfront planning.
+
+---
+
+## At session end
+
+- Add a retrospective entry if a failure mode was surfaced or a new 
+  rule was established. Use the template in `docs/retrospective.md`.
+- Close any Claude in Chrome tabs opened during the session.
+- Write or update a handoff note (`session-handoff-{N}.md`) with 
+  what was done, what's open, and what the next session should 
+  start with.
+
+---
+
+## Part 2: Project reference
+
+### 2.1 Architecture
+
+The booking page is hosted on the Beds24 domain 
+(`beds24.com/booking2.php`), styled via CSS/JS injection, and embedded 
+as an iframe on the WordPress property site.
+
+**Guest flow:**
+
+WordPress "Book A Room" page → custom widget renders date/guest 
+picker → guest clicks "Search" → Beds24 booking page loads in iframe 
+below widget with `referer=widget` parameter → guest browses rooms 
+inline → clicks Book → `form.target="_top"` breaks out of iframe → 
+Beds24 checkout takes over full browser tab → back button returns 
+to WordPress.
+
+**Why this architecture:** See `docs/beds24-execution-context.md` for 
+the decision history. Short version: alternatives (WordPress plugin 
+embed, full iframe through checkout, direct Beds24 link) were tried 
+and rejected for specific reasons. Do not propose returning to them 
+in review. Critique operates within the hybrid-iframe constraint.
+
+### 2.2 CSS architecture
+
+See `css-architecture.md` for full detail. Summary:
+
+- **External `CSS-base.css`** — all structural rules, aesthetics, 
+  layout, responsive design. No character limit. Served via 
+  `&cssfile=` parameter. Single file, shared across all properties.
+- **`bookingcss` field (Beds24 admin "Custom CSS")** — critical CSS 
+  payload for FOUC prevention, plus per-property variable overrides. 
+  HARD LIMIT: ~18-19K characters (saves silently fail above this). 
+  Keep under 2K.
+- **Per-property theming** — brand colors and fonts applied via CSS 
+  variable overrides in each property's `bookingcss` field.
+
+### 2.3 JS architecture
+
+See `helper-js-architecture.md` for the section-by-section layout. 
+Summary:
+
+- **`beds24-iframe-helper.js`** — loaded via Beds24 "Insert in HTML 
+  <HEAD> bottom" field. Reads `window.TNH_CONFIG` for per-property 
+  data. Handles per-room Book buttons, dorm booking, date strip 
+  overrides, price display, room sorting, iframe chrome hiding, 
+  height sync. Shared across all properties.
+- **`booking-widget.js`** — loaded via WordPress Custom HTML block. 
+  Reads `window.TNH_WIDGET_CONFIG` for per-property data. Renders 
+  date/guest picker, creates iframe, manages loading spinner. Shared 
+  across all properties.
+
+Both halt with a console error if their config is missing or 
+invalid. No hardcoded fallbacks.
+
+### 2.4 Design target — Hostelworld density
+
+The booking page should feel like Hostelworld: dense, information-
+rich, OTA-style. Not minimalist. See `docs/mockup.html` for the 
+approved design.
+
+**Room card layout (desktop, ≥768px iframe width):**
 
 ```
-┌────────────────────────────────────────────┐
-│ Room Name                                  │
-├──────────────┬─────────────────────────────┤
-│              │ Description text             │
-│  Photo       │ Features / amenities         │
-│  (40%)       │ "Sleeps X" / "Ensuite" tags │
-│              │                              │
-├──────────────┴─────────────────────────────┤
-│ Date Strip (availability calendar)          │
-├─────────────────────────────────────────────┤
-│ [Quantity ▼]  from €XX   [Book Now →]      │
+┌─────────────────────────────────────────────┐
+│ Room Name                                   │
+├─────────┬───────────────────────────────────┤
+│         │ Description                        │
+│ Photo   │ [tag] [tag] [tag]                  │
+│         │                                    │
+├─────────┴───────────────────────────────────┤
+│ from €XX / night   [qty] [total] [Book →]  │
 └─────────────────────────────────────────────┘
 ```
 
-Mobile: stacks vertically (photo full width, then description, then dates, then booking bar).
+**Room card layout (mobile, <768px iframe width):**
 
-### Booking Strip
-
-Check In + Check Out only. No nights selector (redundant), no global guest count (handled per-room via quantity selectors). The strip should be sticky (fixed at top on scroll).
-
-### What to Hide
-
-- Nights selector (`.b24-selector-numnight`)
-- "New search" link (`.newsearch`)
-- "Book Multiple" toggle (`#multiroom`) — set to always-on via admin config
-- Per-room guest count selectors (`select[id^="naa"]`) — redundant with multi-room
-- Per-occupancy price breakdown (`[id^="price-"][class*="b24-roomprice"]`) — keep only "from" price
-- Duplicate room-level calendars (`.b24-room-cal`)
-- Offer-level calendars (`.b24-offer-cal`) — keep only property calendar at top
-- Fakelinks (`.fakelink`) — "pictures", "close", "more/less details"
-
-### What to Force Open
-
-Beds24 collapses photo sliders and descriptions by default using `hidden-xs hidden-sm hidden-md hidden-lg` on wrapper divs. Override with:
-
-```css
-[id^="collapseslider"] { display: block !important; height: auto !important; }
-[id^="collapsedesc"] { display: block !important; height: auto !important; }
+```
+┌──────────────────────────────┐
+│ Room Name                    │
+├──────┬───────────────────────┤
+│      │ Description            │
+│Photo │                        │
+├──────┴───────────────────────┤
+│ [tag] [tag] [tag] [tag]      │
+├──────────────────────────────┤
+│ from €XX / night             │
+│ [qty] [total] [Book →]       │
+└──────────────────────────────┘
 ```
 
----
+**Critical rendering fact:** The iframe width is controlled entirely 
+by the widget's `max-width` (currently 1290px in `booking-widget.js`). 
+Neither WordPress, Kadence, nor Beds24 admin affects this. The 
+formula is `iframe_width = min(viewport, widget.max-width) - 2px`. 
+At widget max-width 1290px:
 
-## Per-Property Setup Checklist
+- iPhone portrait (390px viewport) → 388px iframe → **mobile layout**
+- iPhone landscape (844px) → 842px iframe → **desktop layout**
+- iPad portrait/landscape → 808-1078px iframe → **desktop layout**
+- Desktop (≥1292px) → 1288px iframe → **desktop layout**
 
-For each new property:
+Beds24's mobile breakpoint is 767px. Only phone-portrait-ish 
+viewports trigger mobile CSS. See `retrospective.md` 2026-04-21 
+entries for the diagnostic that established this.
 
-### 1. Gather Property Info
-- [ ] Property ID and room IDs (from Beds24 admin)
-- [ ] Brand colors (primary, secondary, text, background)
-- [ ] Fonts (Google Fonts names)
-- [ ] Room names, descriptions, features per room
-- [ ] Photos uploaded and positioned per room
-- [ ] Policies (general, cancellation)
+### 2.5 Per-property rollout
 
-### 2. Beds24 Admin Configuration
-- [ ] Layout 6, Template 6 set
-- [ ] Style panel: brand colors applied (20 color fields)
-- [ ] Google Fonts `<link>` tag in `customheadtop`
-- [ ] Font override in `bookingcss` (`.colorbody` + heading selectors)
-- [ ] Content entry: property description, room descriptions, policies
-- [ ] Photos positioned per room
-- [ ] Multiple Room Booking: set to "Enabled" (`bookpageallowmulti` = 1)
-- [ ] Room Features module (106) added to Room Bottom in Layout
-- [ ] Room features entered per room (or property-level in PROPERTIES > DESCRIPTION)
+When rolling out to a new property, see `rollout-checklist.md` for 
+the complete step-by-step checklist. Property-specific configuration 
+for the current property (room IDs, tags, descriptions) is in 
+`property-config.md`.
 
-### 3. CSS Deployment
-- [ ] Commit `CSS-base.css` to repo and push (GitHub Actions deploys to VPS)
-- [ ] Paste critical CSS payload + variable overrides into `bookingcss` field
-- [ ] Verify booking page loads with `&cssfile=` parameter
-
-### 4. JS Deployment
-- [ ] Commit `booking-widget.js` to repo with per-property CONFIG (GitHub Actions deploys)
-- [ ] Commit `beds24-iframe-helper.js` to repo (shared across properties)
-- [ ] **Verify both files accessible** — navigate to URLs, confirm 200 response
-- [ ] Add Date.now() bootstrapper `<script>` tag to `customhead` field (one-time, never needs updating)
-- [ ] WordPress: add Custom HTML block with `<div id="tnh-booking-root"></div>` + Date.now() bootstrapper (one-time)
-
-### 5. Verify
-- [ ] Widget renders on WordPress page: date picker, guest selector, Search button
-- [ ] Search loads rooms in iframe below widget
-- [ ] Room cards: photos visible, descriptions visible, features showing
-- [ ] Date strip per room: showing availability
-- [ ] Per-room Book button visible on each room card (injected by helper JS)
-- [ ] Dorm rooms: guest selector visible, relabeled "Beds", right-aligned
-- [ ] Clicking Book breaks out of iframe to full-page Beds24 checkout
-- [ ] Back button returns to WordPress page
-- [ ] Duplicate calendars hidden
-- [ ] Fakelinks hidden
-- [ ] Per-occupancy prices hidden (only "from €XX" shows)
-- [ ] No excess whitespace below rooms
-- [ ] Mobile layout stacks properly
-- [ ] No iOS double-scroll issue
-
-### Per-Property CSS Variable Block
-
-Each property gets a small variable override block in the `bookingcss` inline field. Template:
-
-```css
-:root {
-  --b24-color-primary: #XXXXXX;
-  --b24-color-secondary: #XXXXXX;
-  --b24-color-text: #XXXXXX;
-  --b24-color-text-light: #XXXXXX;
-  --b24-color-bg: #XXXXXX;
-  --b24-color-bg-white: #ffffff;
-  --b24-color-border: #XXXXXX;
-  --b24-color-accent-hover: #XXXXXX;
-  --b24-color-secondary-hover: #XXXXXX;
-  --b24-font-body: 'FontName', sans-serif;
-  --b24-font-heading: 'HeadingFont', sans-serif;
-}
-.colorbody { font-family: 'FontName', sans-serif !important; }
-h1, h2, h3, h4, h5, h6, .at_roomnametext, .b24-roompanel-heading, .monthcalendarhead {
-  font-family: 'HeadingFont', sans-serif !important;
-}
-```
-
----
-
-## Dorm Room Special Case
-
-Dorm rooms configured for channel manager compatibility (Hostelworld, Booking.com) behave differently from private rooms on the Beds24 booking page:
-
-- **Quantity selector**: renders as `input[type="hidden"]` auto-set to 1, NOT a `<select>` dropdown
-- **Guest selector**: only "0 Guests" / "1 Guest" — in a separate `.b24-multipricebox` from the "from" price
-- **No visible booking mechanism**: without the helper, the guest sees only the price and date strip
-- **Two visible price boxes**: Box 0 has the "from" price; Box 1 has the guest selector. This creates two rows.
-
-**Solution (implemented in iframe helper v14):**
-1. Detect dorm rooms by finding `input[type="hidden"][name^="sr1-"]`
-2. Relabel guest selector options from "Guests" to "Beds"
-3. Move the guest selector from Box 1 (orphan) into Box 0 (main, contains "from" price) — inserted before the "from" price element
-4. Hide Box 1 (now empty)
-5. Inject an orange Book button into Box 0 (same as private rooms)
-6. Result: `[Beds: 1 Bed ▼] [from €32.00] [Book]` on one line, matching private rooms
-
-**Do not change the dorm's Beds24 room configuration** — it affects channel manager integrations with Hostelworld, Booking.com, etc.
-
-This is a per-property issue — every hostel with dorm rooms will have it. The iframe helper handles it automatically.
-
----
-
-## Tool Usage
+### 2.6 Tool usage
 
 | Task | Tool | Notes |
-|---|---|---|
-| CSS/JS authoring | Claude Code / Claude chat | Edit files, commit and push to deploy |
-| Deployment | GitHub Actions CI/CD | Auto-deploys on push to `main` via SCP to VPS |
-| **File verification** | **Claude in Chrome or user browser** | **Navigate to URL and confirm 200 before debugging** |
-| WordPress page editing | User or Claude in Chrome | One-time setup only (Date.now() bootstrapper) |
-| Beds24 admin field reads | Claude in Chrome | JS execution on admin pages |
-| Beds24 admin field writes | Claude in Chrome | Works for text fields and `customhead`; FAILS for `custombody`/`customheadconfirm` `<script>`/`<style>` tags |
-| Beds24 admin `<script>`/`<style>` writes | Manual paste by user | Only needed for `custombody` and `customheadconfirm` fields |
-| DOM inspection of booking page | Claude in Chrome | JS execution on booking page; `offsetHeight` returns 0 in MCP tabs |
-| Visual verification | User screenshot | MCP tabs have 0 viewport width — screenshots are the ONLY reliable visual test |
+|------|------|-------|
+| CSS/JS authoring | Claude Code | Files auto-deploy on push |
+| Beds24 admin reads | Claude in Chrome | JS execution on admin pages |
+| Beds24 admin writes (most fields) | Claude in Chrome | Works for text fields |
+| Beds24 `<script>`/`<style>` writes | Manual paste by user | Tags stripped on programmatic save |
+| DOM inspection of booking page | Claude in Chrome | JS execution on booking page |
+| Visual verification | User screenshot | MCP tabs may have 0 viewport width |
 | Photo uploads | Manual by user | File picker inaccessible to automation |
 | Mobile QA | Manual on real iOS device | Cannot be automated |
 
-### First-Session Verification Protocol
+**Claude in Chrome tips for Beds24:**
 
-**Run this EVERY time you start a new session:**
+- Admin page URL pattern: `https://beds24.com/control3.php?pagetype={type}&id={id}`
+- Key page types: `bookingpagedesigndeveloper`, `bookingpagedesignlayout`, 
+  `bookingpagedesign2`, `bookingpagedesignstyle`, `bookingpagedesigncontent`, 
+  `roomssetup`, `propertydescription`
+- Avoid including booking page URLs in JS return values — may be 
+  blocked by content filters
+- MCP tab may have `innerWidth: 0` (background tab) — width-dependent 
+  layout testing unreliable; use user screenshots for visual 
+  verification
+- Beds24 form saves use AJAX (`jquerysubmit=1`) — click the save 
+  button element, don't submit the form directly
+- "Add module" dropdown on Layout page requires manual UI 
+  interaction — programmatic value-setting doesn't trigger Beds24's 
+  handler
 
-1. Navigate to each JS/CSS file URL in browser — confirm 200 (not 404) and correct content
-2. Check Beds24 `customhead` field has Date.now() bootstrapper
-3. Check WordPress Custom HTML block has Date.now() bootstrapper
-4. Hard refresh the booking page
-5. Then start work
+---
 
-**Do NOT proceed to debugging without passing steps 1-4.**
+## Reference files
 
-### Claude in Chrome Tips for Beds24
-
-- Admin page type URL pattern: `https://beds24.com/control3.php?pagetype={type}&id={propertyOrRoomId}`
-- Key page types: `bookingpagedesigndeveloper`, `bookingpagedesignlayout`, `bookingpagedesign2`, `bookingpagedesignstyle`, `bookingpagedesigncontent`, `roomssetup`, `propertydescription`
-- The booking page URL may get blocked by content filters when reading values — avoid including URLs in JS return values
-- The MCP tab may have `innerWidth: 0` (background tab), making width-dependent layout testing unreliable — use user screenshots for visual verification
-- Beds24 form saves use AJAX (`jquerysubmit=1`) — click the save button element, don't submit the form directly
-- The "add module" dropdown on the Layout page requires manual UI interaction — programmatic value-setting doesn't trigger Beds24's handler
+- `dom-structure.md` — verified DOM map
+- `css-architecture.md` — CSS file structure and variable system
+- `helper-js-architecture.md` — helper JS section layout
+- `admin-guide.md` — Beds24 admin field reference
+- `property-config.md` — per-property IDs, tags, descriptions
+- `rollout-checklist.md` — new-property setup steps
+- `gotchas.md` — known pitfalls with solutions
