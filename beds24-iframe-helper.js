@@ -3,21 +3,33 @@
  * Stable filename — deployed via GitHub Actions CI/CD.
  * Loaded via Date.now() bootstrapper in Beds24 customhead field.
  *
- * Session 11: Offer bar rebuild
- * - Replaced Sections 3+4+6 with unified rebuildOfferBars()
- * - New .tnh-offer-bar with 3-state machine
- * - Moves Beds24 form elements (never clones) to preserve jQuery handlers
+ * Session 10 updates:
+ * - Viewport clamp for iOS Safari iframe: html/body overflow-x constraint
+ * - All Bootstrap .container elements clamped to 100% width
+ * - All v16 functionality preserved
+ * Session 9 updates:
+ * - Dual tag injection (desktop inside desc column + mobile as direct grid child)
+ * - Description text styled with .tnh-desc-text (NOT hidden)
+ * - Book button wrapped in .tnh-book-group with total price
+ * - Per-night price: lighter style, no subtitle line
+ * - Qty placeholder changed from "Quantity" to "-"
+ * - All previous: lazy page detection, bookmult, checkout in iframe, dorm fix
  */
 (function(){
   var isWidget = location.search.indexOf('referer=widget') >= 0;
   var isEmbedded = window.parent !== window;
+
+  /* Lazy page detection — DOM may not exist yet when script loads in <head> */
   function getIsRoomSearch() { return !!document.getElementById('formlook'); }
   function getIsCheckout() { return !!document.querySelector('.bp2book'); }
 
-  /* === SECTION 1: Hide chrome + height sync (widget only) === */
+  /* ============================================
+   * SECTION 1: Hide chrome + height sync (widget only)
+   * ============================================ */
   if (isWidget && isEmbedded) {
     var s = document.createElement('style');
     s.textContent = ''
+      /* Room search page chrome */
       + '.b24fullcontainer-selector{display:none!important}'
       + '.b24fullcontainer-top{display:none!important}'
       + '.b24fullcontainer-ownerrow1{display:none!important}'
@@ -27,25 +39,43 @@
       + '.b24fullcontainer-proprow11{display:none!important}'
       + '.b24fullcontainer-ownerrow11{display:none!important}'
       + '#b24bookshoppingcart{display:none!important}'
+      /* Checkout/confirmation page chrome */
       + '#selectorstripinfo{display:none!important}'
       + '.book_poweredby{display:none!important}'
       + '.bp2book .b24panel img{max-width:200px!important;height:auto!important;border-radius:8px}'
       + '.book_securelogo{display:none!important}'
+      /* Shared */
       + 'body{background:transparent!important;margin:0!important;padding:0!important}'
+      /* iOS Safari iframe viewport fix: prevent Bootstrap containers from expanding iframe */
       + '.container{max-width:100%!important;width:auto!important;box-sizing:border-box!important}'
       + '.row{max-width:100%!important}';
     document.head.appendChild(s);
 
     function send() {
-      var h, el = document.querySelector('.b24fullcontainer-rooms') || document.querySelector('#bookingpage');
-      if (el) { var r = el.getBoundingClientRect(); h = Math.ceil(r.bottom + window.scrollY); }
-      else { h = document.documentElement.scrollHeight; }
+      var h;
+      var rooms = document.querySelector('.b24fullcontainer-rooms');
+      var bookingPage = document.querySelector('#bookingpage');
+      if (rooms) {
+        var rect = rooms.getBoundingClientRect();
+        h = Math.ceil(rect.bottom + window.scrollY);
+      } else if (bookingPage) {
+        var rect2 = bookingPage.getBoundingClientRect();
+        h = Math.ceil(rect2.bottom + window.scrollY);
+      } else {
+        h = document.documentElement.scrollHeight;
+      }
       h = Math.max(h, 200);
-      try { window.parent.postMessage(JSON.stringify({type:'tnh-height', height:h}), '*'); } catch(e) {}
+      try {
+        window.parent.postMessage(JSON.stringify({type:'tnh-height', height:h}), '*');
+      } catch(e) {}
     }
+
     function notifyPageChange(page) {
-      try { window.parent.postMessage(JSON.stringify({type:'tnh-page-change', page:page}), '*'); } catch(e) {}
+      try {
+        window.parent.postMessage(JSON.stringify({type:'tnh-page-change', page:page}), '*');
+      } catch(e) {}
     }
+
     if (document.readyState === 'complete') {
       send();
       if (!getIsRoomSearch()) notifyPageChange(getIsCheckout() ? 'checkout' : 'confirmation');
@@ -57,247 +87,196 @@
     }
   }
 
-  /* === OFFER BAR REBUILD (replaces Sections 3+4+6) === */
+  /* ============================================
+   * SECTION 2: (removed — checkout stays in iframe)
+   * ============================================ */
 
-  function detectOfferState(offer) {
-    var w = offer.querySelector('[class*="offerwarndiv"]');
-    if (w && !w.classList.contains('hidden')) return 'unavailable';
-    var f = offer.querySelector('[id^="from-1-"]');
-    if (f && f.classList.contains('hidden')) return 'available-qty';
-    return 'available-noqty';
-  }
-
-  function extractPriceData(offer) {
-    var f = offer.querySelector('[id^="from-1-"]');
-    if (!f) return { valid: false };
-    var ds = f.querySelector('.bookingpagedollars'), cs = f.querySelector('.bookingpagecents');
-    if (!ds || !cs) return { valid: false };
-    var d = parseInt(ds.textContent, 10), c = parseInt(cs.textContent.replace('.',''), 10) || 0;
-    if (isNaN(d)) return { valid: false };
-    var total = d + c / 100;
-    var cur = (f.querySelector('.bookingpagecurrency') || {}).textContent || '\u20AC';
-    /* Cache the base total for readLiveTotal to use */
-    if (!f.dataset.tnhBaseTotal) {
-      f.dataset.tnhBaseTotal = total.toFixed(2);
-      f.dataset.tnhBaseCurrency = cur;
-    }
-    var nEl = document.querySelector('#inputnumnight');
-    var n = nEl ? parseInt(nEl.value, 10) : 1;
-    if (!n || n < 1) n = 1;
-    return { valid: true, total: total, currency: cur, nights: n, perNight: n > 1 ? total / n : total };
-  }
-
-  function readLiveTotal(offer) {
-    /* Compute total: base total × qty selected */
-    var f = offer.querySelector('[id^="from-1-"]');
-    if (!f) return null;
-    /* Use cached base total if available, otherwise read from spans */
-    var baseTotal, cur;
-    if (f.dataset.tnhBaseTotal) {
-      baseTotal = parseFloat(f.dataset.tnhBaseTotal);
-      cur = f.dataset.tnhBaseCurrency || '\u20AC';
-    } else {
-      var ds = f.querySelector('.bookingpagedollars'), cs = f.querySelector('.bookingpagecents');
-      if (!ds || !cs) return null;
-      var d = parseInt(ds.textContent, 10), c = parseInt(cs.textContent.replace('.',''), 10) || 0;
-      if (isNaN(d)) return null;
-      baseTotal = d + c / 100;
-      cur = (f.querySelector('.bookingpagecurrency') || {}).textContent || '\u20AC';
-      f.dataset.tnhBaseTotal = baseTotal.toFixed(2);
-      f.dataset.tnhBaseCurrency = cur;
-    }
-    if (isNaN(baseTotal)) return null;
-    /* Read qty from the select */
-    var qs = offer.querySelector('select[id^="sr1-"]');
-    var qty = qs ? parseInt(qs.value, 10) : 1;
-    if (!qty || qty < 1) qty = 1;
-    /* For dorms, read from guest select instead */
-    if (offer.querySelector('input[type="hidden"][name^="sr1-"]')) {
-      var gs = offer.querySelector('select[id^="naa"]');
-      qty = gs ? parseInt(gs.value, 10) : 1;
-      if (!qty || qty < 1) qty = 1;
-    }
-    return { total: baseTotal * qty, currency: cur };
-  }
-
-  function isDormOffer(offer) {
-    return !!offer.querySelector('input[type="hidden"][name^="sr1-"]');
-  }
-
-  function getOrCreateOfferBar(offer) {
-    var existing = offer.querySelector('.tnh-offer-bar');
-    if (existing) return existing;
-    var bar = document.createElement('div');
-    bar.className = 'tnh-offer-bar';
-    var row = offer.querySelector('.row');
-    var strip = row ? row.querySelector('.b24-offer-pricetable') : null;
-    if (row && strip) row.insertBefore(bar, strip);
-    else if (row) row.appendChild(bar);
-    return bar;
-  }
-
-  function movePriceBoxInto(bar, offer) {
-    var controls = bar.querySelector('.tnh-offer-controls');
-    if (!controls) return;
-    if (bar.dataset.tnhMoved === 'true' && controls.querySelector('.b24-multipricebox')) return;
-    bar.dataset.tnhMoved = '';
-    var sel = offer.querySelector('.b24-offer-select');
-    if (!sel) return;
-    var boxes = sel.querySelectorAll('.b24-multipricebox'), mainBox = null;
-    for (var i = 0; i < boxes.length; i++) {
-      if (!boxes[i].classList.contains('hidden') && boxes[i].querySelector('[id^="from-"]')) { mainBox = boxes[i]; break; }
-    }
-    if (!mainBox) return;
-    var label = controls.querySelector('.tnh-offer-label');
-    if (label) controls.insertBefore(mainBox, label.nextSibling);
-    else controls.insertBefore(mainBox, controls.querySelector('.tnh-total-price'));
-    bar.dataset.tnhMoved = 'true';
-  }
-
-  function handleDormControls(bar, offer) {
-    if (bar.dataset.tnhDormDone === 'true') return;
-    var sel = offer.querySelector('.b24-offer-select');
-    if (!sel) return;
-    var gs = sel.querySelector('select[id^="naa"]');
-    if (!gs) return;
-    for (var i = 0; i < gs.options.length; i++) {
-      if (i === 0 && (gs.options[i].value === '0' || gs.options[i].value === '')) {
-        gs.options[i].text = '-';
-      } else {
-        gs.options[i].text = gs.options[i].text.replace(/Guests?/g, function(m) { return m === 'Guest' ? 'Bed' : 'Beds'; });
-      }
-    }
-    var controls = bar.querySelector('.tnh-offer-controls');
-    if (!controls) return;
-    var wrapper = document.createElement('span');
-    wrapper.className = 'tnh-dorm-select-wrapper';
-    var lbl = document.createElement('span');
-    lbl.className = 'tnh-offer-label'; lbl.textContent = 'Beds';
-    wrapper.appendChild(lbl);
-    wrapper.appendChild(gs); /* MOVE, not clone */
-    var existing = controls.querySelector('.tnh-offer-label');
-    if (existing) controls.replaceChild(wrapper, existing);
-    else controls.insertBefore(wrapper, controls.firstChild);
-    /* Hide orphan second pricebox */
-    sel.querySelectorAll('.b24-multipricebox').forEach(function(box) {
-      if (!box.classList.contains('hidden') && !box.querySelector('[id^="from-"]') && !box.closest('.tnh-offer-bar'))
-        box.style.setProperty('display', 'none', 'important');
-    });
-    bar.dataset.tnhDormDone = 'true';
-  }
-
-  function formatPrice(pd) {
-    if (!pd.valid) return '';
-    return pd.nights > 1
-      ? 'from ' + pd.currency + pd.perNight.toFixed(2) + ' / night'
-      : 'from ' + pd.currency + pd.total.toFixed(2);
-  }
-
-  function renderOfferBar(bar, offer, state, pd) {
-    var controls = bar.querySelector('.tnh-offer-controls');
-    var priceDiv = bar.querySelector('.tnh-offer-price');
-    var totalEl = bar.querySelector('.tnh-total-price');
-    var unavailEl = bar.querySelector('.tnh-unavailable');
-
-    if (state === 'unavailable') {
-      if (controls) controls.style.display = 'none';
-      if (priceDiv) priceDiv.style.display = 'none';
-      if (!unavailEl) { unavailEl = document.createElement('div'); unavailEl.className = 'tnh-unavailable'; bar.appendChild(unavailEl); }
-      var w = offer.querySelector('[class*="offerwarndiv"]');
-      unavailEl.textContent = w ? w.textContent.trim() : 'Not available for selected dates';
-      unavailEl.style.display = '';
-      return;
-    }
-
-    if (unavailEl) unavailEl.style.display = 'none';
-    if (controls) controls.style.display = '';
-    if (priceDiv) { priceDiv.style.display = ''; priceDiv.textContent = formatPrice(pd); }
-
-    if (state === 'available-noqty') {
-      if (totalEl) { totalEl.style.display = 'none'; totalEl.textContent = ''; }
-    } else {
-      if (totalEl) {
-        var live = readLiveTotal(offer);
-        if (live) { totalEl.textContent = live.currency + live.total.toFixed(2); totalEl.style.display = ''; }
-      }
-    }
-  }
-
-  function attachBookHandler(btn, offer) {
-    if (btn.dataset.tnhBound === 'true') return;
-    btn.dataset.tnhBound = 'true';
-    var dorm = isDormOffer(offer);
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      var qs = offer.querySelector('select[id^="sr1-"]');
-      var gs = offer.querySelector('select[id^="naa"]');
-      if (qs && (qs.value === '0' || qs.value === '')) {
-        qs.value = '1'; qs.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      if (dorm && gs && (gs.value === '0' || gs.value === '')) {
-        gs.value = '1'; gs.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      var form = document.getElementById('formlook');
-      if (form) {
-        if (!form.querySelector('input[name="bookmult"]')) {
-          var bm = document.createElement('input');
-          bm.type = 'hidden'; bm.name = 'bookmult'; bm.value = '';
-          form.appendChild(bm);
-        }
-        form.submit();
-      }
-    });
-  }
-
-  function buildOfferBar(offer) {
-    var state = detectOfferState(offer);
-    var pd = extractPriceData(offer);
-    var bar = getOrCreateOfferBar(offer);
-    var dorm = isDormOffer(offer);
-
-    if (!bar.querySelector('.tnh-offer-price')) {
-      var priceDiv = document.createElement('div');
-      priceDiv.className = 'tnh-offer-price';
-      bar.appendChild(priceDiv);
-      var controls = document.createElement('div');
-      controls.className = 'tnh-offer-controls';
-      if (!dorm) {
-        var lbl = document.createElement('span');
-        lbl.className = 'tnh-offer-label'; lbl.textContent = 'Select';
-        controls.appendChild(lbl);
-      }
-      var totalEl = document.createElement('span');
-      totalEl.className = 'tnh-total-price'; totalEl.style.display = 'none';
-      controls.appendChild(totalEl);
-      var btn = document.createElement('button');
-      btn.type = 'button'; btn.className = 'tnh-book-btn'; btn.textContent = 'Book';
-      controls.appendChild(btn);
-      bar.appendChild(controls);
-    }
-
-    if (state !== 'unavailable') {
-      movePriceBoxInto(bar, offer);
-      if (dorm) handleDormControls(bar, offer);
-    }
-    renderOfferBar(bar, offer, state, pd);
-    var bookBtn = bar.querySelector('.tnh-book-btn');
-    if (bookBtn) attachBookHandler(bookBtn, offer);
-  }
-
-  function rebuildOfferBars() {
+  /* ============================================
+   * SECTION 3: Dorm booking fix
+   * ============================================ */
+  function fixDormRooms() {
     if (!getIsRoomSearch()) return;
-    document.querySelectorAll('.offer').forEach(buildOfferBar);
-    document.querySelectorAll('select[id^="sr1-"]').forEach(function(sel) {
-      if (sel.options[0] && (sel.options[0].text === 'Quantity' || sel.options[0].value === '0'))
-        sel.options[0].text = '-';
+    var hiddenInputs = document.querySelectorAll('input[type="hidden"][name^="sr1-"]');
+    hiddenInputs.forEach(function(input) {
+      var offer = input.closest('.offer');
+      if (!offer) return;
+      if (offer.querySelector('.tnh-dorm-fixed')) return;
+
+      var marker = document.createElement('span');
+      marker.className = 'tnh-dorm-fixed';
+      marker.style.display = 'none';
+      offer.appendChild(marker);
+
+      var guestSelect = offer.querySelector('select[id^="naa"]');
+      if (!guestSelect) return;
+
+      for (var i = 0; i < guestSelect.options.length; i++) {
+        var opt = guestSelect.options[i];
+        opt.text = opt.text.replace(/Guests?/g, function(m) {
+          return m === 'Guest' ? 'Bed' : 'Beds';
+        });
+      }
+
+      guestSelect.style.cssText = ''
+        + 'display:inline-block!important;visibility:visible!important;'
+        + 'width:auto;min-width:80px;padding:6px 10px;'
+        + 'font-family:inherit;font-size:14px;'
+        + 'border:1.5px solid #d4e0d4;border-radius:6px;'
+        + 'background:#F7FAFC;color:#2D482D;cursor:pointer;'
+        + 'margin-right:8px;';
+
+      var allBoxes = offer.querySelectorAll('.b24-multipricebox');
+      var mainBox = null;
+      var orphanBox = null;
+      allBoxes.forEach(function(box) {
+        if (box.classList.contains('hidden')) return;
+        if (box.querySelector('[id^="from-"]')) {
+          mainBox = box;
+        } else if (box.querySelector('select[id^="naa"]')) {
+          orphanBox = box;
+        }
+      });
+
+      if (mainBox) {
+        var wrapper = document.createElement('span');
+        wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:8px;';
+        var label = document.createElement('span');
+        label.textContent = 'Beds:';
+        label.style.cssText = 'font-size:13px;font-weight:500;color:#5a6f5a;';
+        wrapper.appendChild(label);
+        wrapper.appendChild(guestSelect);
+
+        var fromPrice = mainBox.querySelector('[id^="from-"]');
+        if (fromPrice) {
+          mainBox.insertBefore(wrapper, fromPrice);
+        } else {
+          mainBox.insertBefore(wrapper, mainBox.firstChild);
+        }
+      }
+
+      if (orphanBox) {
+        orphanBox.style.setProperty('display', 'none', 'important');
+      }
     });
   }
 
-  /* === SECTION 5: Date strip overrides === */
-  var dss = document.createElement('style');
-  dss.textContent = ''
+  /* ============================================
+   * SECTION 4: Inject per-room Book buttons
+   * Now wrapped in .tnh-book-group with total price
+   * ============================================ */
+  function injectBookButtons() {
+    if (!getIsRoomSearch()) return;
+    var offers = document.querySelectorAll('.offer');
+    offers.forEach(function(offer) {
+      if (offer.querySelector('.tnh-book-btn')) return;
+
+      /* Skip unavailable rooms — Beds24 shows a warning and hides selectors */
+      var warnDiv = offer.querySelector('[class*="offerwarndiv"]');
+      if (warnDiv && !warnDiv.classList.contains('hidden')) return;
+
+      var priceBox = offer.querySelector('.b24-multipricebox:not(.hidden)');
+      if (!priceBox) return;
+
+      var qtySelect = offer.querySelector('select[id^="sr1-"]');
+      var hiddenInput = offer.querySelector('input[type="hidden"][name^="sr1-"]');
+      var guestSelect = offer.querySelector('select[id^="naa"]');
+
+      /* Parse total from the from-price spans */
+      var fromDiv = priceBox.querySelector('[id^="from-"]');
+      var dollarsSpan = fromDiv ? fromDiv.querySelector('.bookingpagedollars') : null;
+      var centsSpan = fromDiv ? fromDiv.querySelector('.bookingpagecents') : null;
+      var currencySpan = fromDiv ? fromDiv.querySelector('.bookingpagecurrency') : null;
+      var total = 0;
+      var currency = '\u20AC';
+      if (dollarsSpan && centsSpan) {
+        total = parseInt(dollarsSpan.textContent, 10) + parseInt(centsSpan.textContent.replace('.', ''), 10) / 100;
+        currency = currencySpan ? currencySpan.textContent : '\u20AC';
+      }
+
+      /* Create .tnh-book-group: [total] [Book] */
+      var group = document.createElement('span');
+      group.className = 'tnh-book-group';
+
+      /* Total price — hidden until qty is selected */
+      var totalEl = document.createElement('span');
+      totalEl.className = 'tnh-total-price';
+      totalEl.style.display = 'none';
+      if (total > 0) {
+        totalEl.dataset.tnhTotal = total.toFixed(2);
+        totalEl.dataset.tnhCurrency = currency;
+      }
+      group.appendChild(totalEl);
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tnh-book-btn';
+      btn.textContent = 'Book';
+      btn.style.cssText = ''
+        + 'display:inline-block;padding:8px 24px;'
+        + 'font-family:inherit;font-size:14px;font-weight:600;'
+        + 'color:#fff;background:#E7A35C;border:none;border-radius:6px;'
+        + 'cursor:pointer;transition:background .2s;';
+
+      btn.addEventListener('mouseenter', function() {
+        btn.style.background = '#d4923e';
+      });
+      btn.addEventListener('mouseleave', function() {
+        btn.style.background = '#E7A35C';
+      });
+
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (qtySelect) {
+          if (qtySelect.value === '0' || qtySelect.value === '') {
+            qtySelect.value = '1';
+            qtySelect.dispatchEvent(new Event('change', {bubbles: true}));
+          }
+        }
+        if (hiddenInput && guestSelect) {
+          if (guestSelect.value === '0' || guestSelect.value === '') {
+            guestSelect.value = '1';
+            guestSelect.dispatchEvent(new Event('change', {bubbles: true}));
+          }
+        }
+        var form = document.getElementById('formlook');
+        if (form) {
+          if (!form.querySelector('input[name="bookmult"]')) {
+            var bm = document.createElement('input');
+            bm.type = 'hidden';
+            bm.name = 'bookmult';
+            bm.value = '';
+            form.appendChild(bm);
+          }
+          form.submit();
+        }
+      });
+
+      group.appendChild(btn);
+
+      /* Create .tnh-offer-row: wraps [form-inline] and [book-group] as a single flex row */
+      var offerRow = priceBox.querySelector('.tnh-offer-row');
+      if (!offerRow) {
+        offerRow = document.createElement('div');
+        offerRow.className = 'tnh-offer-row';
+        var formInline = priceBox.querySelector('.form-inline');
+        if (formInline) {
+          priceBox.insertBefore(offerRow, formInline);
+          offerRow.appendChild(formInline);
+        }
+      }
+      offerRow.appendChild(group);
+    });
+  }
+
+  /* ============================================
+   * SECTION 5: Date strip overrides
+   * ============================================ */
+  var ds = document.createElement('style');
+  ds.textContent = ''
     + '.datestay{background-color:#6DA17D!important;color:#fff!important}'
-    + '.setsplitdates1 .datestay.prevdateavail,.setsplitdates1 .datestay.prevdatenotavail,.setsplitdates1 .datestay.prevdaterequest'
+    + '.setsplitdates1 .datestay.prevdateavail,'
+    + '.setsplitdates1 .datestay.prevdatenotavail,'
+    + '.setsplitdates1 .datestay.prevdaterequest'
     + '{background:linear-gradient(-45deg,#6DA17D,#6DA17D 50%,#F7FAFC 50%)!important}'
     + '.setsplitdates1 .dateavail.prevdatestay:not(.datestay)'
     + '{background:linear-gradient(-45deg,#F7FAFC,#F7FAFC 50%,#6DA17D 50%)!important}'
@@ -307,92 +286,303 @@
     + '.dateavail:hover{background-color:rgba(109,161,125,.15)!important}'
     + '.roomofferpricetable .at_pricetd{pointer-events:none!important;cursor:default!important}'
     + '.roomofferpricetable tr.b24-bookingstrip{display:none!important}';
-  document.head.appendChild(dss);
+  document.head.appendChild(ds);
 
-  /* === SECTION 7: Room card enhancement === */
-  var ROOM_TAGS = {
-    '567218': [{icon:'\uD83D\uDECF',text:'Sleeps 2'},{icon:'\uD83D\uDEBF',text:'Ensuite'},{icon:'\uD83C\uDFD9',text:'City View'},{icon:'\uD83D\uDCBC',text:'Work Desk'},{icon:'\uD83D\uDC51',text:'Premium'}],
-    '567220': [{icon:'\uD83D\uDECF',text:'Sleeps 1'},{icon:'\uD83D\uDEBF',text:'Shared Bathroom'},{icon:'\uD83D\uDCBC',text:'Work Desk'},{icon:'\uD83D\uDD12',text:'Private'}],
-    '567221': [{icon:'\uD83D\uDECF',text:'Sleeps 2'},{icon:'\uD83D\uDEBF',text:'Shared Bathroom'},{icon:'\uD83D\uDCBC',text:'Work Desk'},{icon:'\uD83D\uDD12',text:'Private'}],
-    '567219': [{icon:'\uD83D\uDECF',text:'1 Bed'},{icon:'\uD83D\uDC65',text:'4-Bed Dorm'},{icon:'\uD83C\uDFD9',text:'City View'},{icon:'\uD83D\uDD0C',text:'Power Outlet'},{icon:'\uD83D\uDCA1',text:'Reading Light'}]
-  };
-  function buildTagsDiv(tags, cls) {
-    var c = document.createElement('div'); c.className = cls;
-    tags.forEach(function(t) { var b = document.createElement('span'); b.className = 'tnh-tag'; b.textContent = t.icon + ' ' + t.text; c.appendChild(b); });
-    return c;
+  /* ============================================
+   * SECTION 6: Price UX enhancement
+   * Per-night display with lighter styling.
+   * Total price now shown in .tnh-book-group (Section 4).
+   * After qty selection: updates total in .tnh-total-price.
+   * ============================================ */
+  function enhancePrices() {
+    if (!getIsRoomSearch()) return;
+    try {
+      var nightsEl = document.querySelector('#inputnumnight');
+      if (!nightsEl) return;
+      var nights = parseInt(nightsEl.value, 10);
+      if (!nights || nights < 1) return;
+
+      var fromDivs = document.querySelectorAll('[id^="from-1-"]');
+      fromDivs.forEach(function(fromDiv) {
+        if (!fromDiv.dataset.tnhTotal) {
+          var dollarsSpan = fromDiv.querySelector('.bookingpagedollars');
+          var centsSpan = fromDiv.querySelector('.bookingpagecents');
+          if (!dollarsSpan || !centsSpan) return;
+
+          var dollars = parseInt(dollarsSpan.textContent, 10);
+          var centsText = centsSpan.textContent.replace('.', '');
+          var centsNum = parseInt(centsText, 10) || 0;
+          var total = dollars + (centsNum / 100);
+          if (isNaN(total) || total <= 0) return;
+
+          var currencySpan = fromDiv.querySelector('.bookingpagecurrency');
+          var currency = currencySpan ? currencySpan.textContent : '\u20AC';
+
+          fromDiv.dataset.tnhTotal = total.toFixed(2);
+          fromDiv.dataset.tnhCurrency = currency;
+        }
+
+        var total = parseFloat(fromDiv.dataset.tnhTotal);
+        var currency = fromDiv.dataset.tnhCurrency;
+        if (isNaN(total) || total <= 0) return;
+
+        var hasHidden = fromDiv.classList.contains('hidden');
+        var currentState = fromDiv.dataset.tnhState || '';
+        var perNight = nights > 1 ? (total / nights) : total;
+
+        /* Always keep the from-price visible with per-night display */
+        if (currentState !== 'pernight') {
+          fromDiv.dataset.tnhState = 'pernight';
+          /* Override Beds24's .hidden class — from-price should always show */
+          fromDiv.style.setProperty('display', 'block', 'important');
+          fromDiv.classList.remove('hidden');
+
+          if (nights > 1) {
+            fromDiv.innerHTML = '';
+            var mainSpan = document.createElement('span');
+            mainSpan.className = 'tnh-price-pernight-main';
+            mainSpan.textContent = 'from ' + currency + perNight.toFixed(2) + ' / night';
+            fromDiv.appendChild(mainSpan);
+          }
+        }
+
+        /* Show/hide total price based on qty selection */
+        var offer = fromDiv.closest('.offer');
+        var totalEl = offer ? offer.querySelector('.tnh-total-price') : null;
+        if (totalEl) {
+          if (hasHidden) {
+            /* Qty is selected — Beds24 added .hidden to fromDiv, show total */
+            /* Keep fromDiv visible (already handled above) but also show total */
+            fromDiv.style.setProperty('display', 'block', 'important');
+            var updatedTotal = total;
+            var rawDollars = fromDiv.querySelector('.bookingpagedollars');
+            var rawCents = fromDiv.querySelector('.bookingpagecents');
+            if (rawDollars && rawCents) {
+              var d = parseInt(rawDollars.textContent, 10);
+              var c = parseInt(rawCents.textContent.replace('.', ''), 10) || 0;
+              if (!isNaN(d)) updatedTotal = d + (c / 100);
+            }
+            totalEl.textContent = currency + updatedTotal.toFixed(2);
+            totalEl.style.display = '';
+          } else {
+            /* No qty selected — hide total */
+            totalEl.style.display = 'none';
+            totalEl.textContent = '';
+          }
+        }
+      });
+    } catch(e) {}
   }
+
+  /* ============================================
+   * SECTION 7: Room card enhancement
+   * - Style description text with .tnh-desc-text
+   * - Inject desktop tags (inside .b24-room-desc)
+   * - Inject mobile tags (direct child of .b24panel)
+   * - Change qty placeholder to "-"
+   * ============================================ */
+  var ROOM_TAGS = {
+    '567218': [
+      { icon: '\uD83D\uDECF', text: 'Sleeps 2' },
+      { icon: '\uD83D\uDEBF', text: 'Ensuite' },
+      { icon: '\uD83C\uDFD9', text: 'City View' },
+      { icon: '\uD83D\uDCBC', text: 'Work Desk' },
+      { icon: '\uD83D\uDC51', text: 'Premium' }
+    ],
+    '567220': [
+      { icon: '\uD83D\uDECF', text: 'Sleeps 1' },
+      { icon: '\uD83D\uDEBF', text: 'Shared Bathroom' },
+      { icon: '\uD83D\uDCBC', text: 'Work Desk' },
+      { icon: '\uD83D\uDD12', text: 'Private' }
+    ],
+    '567221': [
+      { icon: '\uD83D\uDECF', text: 'Sleeps 2' },
+      { icon: '\uD83D\uDEBF', text: 'Shared Bathroom' },
+      { icon: '\uD83D\uDCBC', text: 'Work Desk' },
+      { icon: '\uD83D\uDD12', text: 'Private' }
+    ],
+    '567219': [
+      { icon: '\uD83D\uDECF', text: '1 Bed' },
+      { icon: '\uD83D\uDC65', text: '4-Bed Dorm' },
+      { icon: '\uD83D\uDD0C', text: 'Power Outlet' },
+      { icon: '\uD83D\uDCA1', text: 'Reading Light' }
+    ]
+  };
+
+  function buildTagsDiv(tags, className) {
+    var container = document.createElement('div');
+    container.className = className;
+    tags.forEach(function(tag) {
+      var badge = document.createElement('span');
+      badge.className = 'tnh-tag';
+      badge.textContent = tag.icon + ' ' + tag.text;
+      container.appendChild(badge);
+    });
+    return container;
+  }
+
   function enhanceRoomCards() {
     if (!getIsRoomSearch()) return;
-    document.querySelectorAll('.b24room').forEach(function(room) {
-      if (room.querySelector('.tnh-room-tags')) return;
-      var roomId = (room.id || '').replace('roomid', ''), tags = ROOM_TAGS[roomId];
+    var rooms = document.querySelectorAll('.b24room');
+    rooms.forEach(function(room) {
+      if (room.querySelector('.tnh-room-tags')) return; /* Already processed */
+
+      var roomId = (room.id || '').replace('roomid', '');
+      var tags = ROOM_TAGS[roomId];
       if (!tags) return;
-      var dc = room.querySelector('[id^="collapsedesc"]');
-      if (dc) { var dt = dc.querySelector('div:not(.fakelink)'); if (dt) dt.className = 'tnh-desc-text'; }
-      var dm = room.querySelector('.b24-room-desc');
-      if (dm) dm.appendChild(buildTagsDiv(tags, 'tnh-room-tags'));
-      var pb = room.querySelector('.panel-body.b24panel'), off = pb ? pb.querySelector('.offer') : null;
-      if (pb && off) pb.insertBefore(buildTagsDiv(tags, 'tnh-room-tags-mobile'), off);
+
+      /* Style description text (don't hide it) */
+      var descCollapse = room.querySelector('[id^="collapsedesc"]');
+      if (descCollapse) {
+        var descText = descCollapse.querySelector('div:not(.fakelink)');
+        if (descText) {
+          descText.className = 'tnh-desc-text';
+        }
+      }
+
+      /* Desktop tags: inside .b24-room-desc (flex space-between pushes to bottom) */
+      var descModule = room.querySelector('.b24-room-desc');
+      if (descModule) {
+        descModule.appendChild(buildTagsDiv(tags, 'tnh-room-tags'));
+      }
+
+      /* Mobile tags: direct child of .b24panel, inserted before .offer */
+      var panelBody = room.querySelector('.panel-body.b24panel');
+      var offer = panelBody ? panelBody.querySelector('.offer') : null;
+      if (panelBody && offer) {
+        panelBody.insertBefore(buildTagsDiv(tags, 'tnh-room-tags-mobile'), offer);
+      }
+    });
+
+    /* Change qty dropdown placeholder from "Quantity" to "-" */
+    var qtySelects = document.querySelectorAll('select[id^="sr1-"]');
+    qtySelects.forEach(function(sel) {
+      if (sel.options[0] && (sel.options[0].text === 'Quantity' || sel.options[0].value === '0')) {
+        sel.options[0].text = '-';
+      }
     });
   }
 
-  /* === SECTION 8: Room sorting === */
+  /* ============================================
+   * SECTION 8: Room ordering
+   * Reads prices from DOM, sorts cheapest first,
+   * pushes unavailable rooms to bottom.
+   * Uses CSS order on .b24room (requires flex parent).
+   * ============================================ */
   function sortRooms() {
     if (!getIsRoomSearch()) return;
+
     var rooms = document.querySelectorAll('.b24room');
     if (rooms.length < 2) return;
+
+    /* All rooms may share the same parent (Beds24 AJAX loads into one wrapper) */
     var parent = rooms[0].parentElement;
-    if (!parent || parent.dataset.tnhSorted === 'true') return;
+    if (!parent) return;
+
+    /* Only sort once per page load — mark parent when done */
+    if (parent.dataset.tnhSorted === 'true') return;
+
     var sortable = [];
     rooms.forEach(function(room) {
-      var offer = room.querySelector('.offer'), price = 999999, unavail = false;
+      var offer = room.querySelector('.offer');
+      var price = 999999;
+
       if (offer) {
-        var fd = offer.querySelector('[id^="from-"]');
-        if (fd) {
-          var dol = fd.querySelector('.bookingpagedollars'), cen = fd.querySelector('.bookingpagecents');
-          if (dol && cen) { var d = parseInt(dol.textContent, 10), c = parseInt(cen.textContent.replace('.',''), 10) || 0; if (!isNaN(d)) price = d + c / 100; }
+        var fromDiv = offer.querySelector('[id^="from-"]');
+        if (fromDiv) {
+          if (fromDiv.dataset.tnhTotal) {
+            price = parseFloat(fromDiv.dataset.tnhTotal) || 999999;
+          } else {
+            var dollars = fromDiv.querySelector('.bookingpagedollars');
+            var cents = fromDiv.querySelector('.bookingpagecents');
+            if (dollars && cents) {
+              var d = parseInt(dollars.textContent, 10);
+              var c = parseInt(cents.textContent.replace('.', ''), 10) || 0;
+              if (!isNaN(d)) price = d + (c / 100);
+            }
+          }
         }
-        var w = offer.querySelector('[class*="offerwarndiv"]');
-        if (w && !w.classList.contains('hidden')) unavail = true;
       }
-      sortable.push({ el: room, price: price, unavailable: unavail });
+
+      var unavailable = false;
+      if (offer) {
+        var warnDiv = offer.querySelector('[class*="offerwarndiv"]');
+        if (warnDiv && !warnDiv.classList.contains('hidden')) unavailable = true;
+      }
+
+      sortable.push({ el: room, price: price, unavailable: unavailable });
     });
-    if (!sortable.some(function(s) { return s.price < 999999; })) return;
+
+    /* Only sort if we got valid prices (not all 999999) */
+    var validPrices = sortable.filter(function(s) { return s.price < 999999; });
+    if (validPrices.length === 0) return;
+
+    /* Sort: available by price asc, then unavailable by price asc */
     sortable.sort(function(a, b) {
       if (a.unavailable !== b.unavailable) return a.unavailable ? 1 : -1;
       return a.price - b.price;
     });
-    sortable.forEach(function(item) { parent.appendChild(item.el); });
+
+    /* DOM reorder — appendChild moves elements, doesn't clone */
+    sortable.forEach(function(item) {
+      parent.appendChild(item.el);
+    });
+
     parent.dataset.tnhSorted = 'true';
   }
 
-  /* === INIT === */
+  /* ============================================
+   * INIT
+   * ============================================ */
   var isModifying = false;
+
   function applyFixes() {
     if (isModifying) return;
     isModifying = true;
-    try { rebuildOfferBars(); enhanceRoomCards(); sortRooms(); if (isWidget && isEmbedded) send(); } catch(e) {}
+    try {
+      fixDormRooms();
+      injectBookButtons();
+      enhancePrices();
+      enhanceRoomCards();
+      sortRooms();
+      if (isWidget && isEmbedded) send();
+    } catch(e) {}
     setTimeout(function() { isModifying = false; }, 500);
   }
+
   function init() {
     applyFixes();
+
     function attachObserver() {
       if (!document.body) return;
       if (typeof MutationObserver !== 'undefined') {
         var t;
         new MutationObserver(function() {
-          if (isModifying) return; clearTimeout(t); t = setTimeout(applyFixes, 300);
+          if (isModifying) return;
+          clearTimeout(t);
+          t = setTimeout(applyFixes, 300);
         }).observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['class','style']});
       }
     }
+
     if (document.body) attachObserver();
     else document.addEventListener('DOMContentLoaded', attachObserver);
+
     if (isWidget && isEmbedded) {
       window.addEventListener('resize', send);
-      document.addEventListener('load', function(e) { if (e.target.tagName === 'IMG') setTimeout(send, 100); }, true);
-      var c = 0, iv = setInterval(function() { applyFixes(); if (++c >= 30) clearInterval(iv); }, 1000);
+      document.addEventListener('load', function(e) {
+        if (e.target.tagName === 'IMG') setTimeout(send, 100);
+      }, true);
+      var c = 0, iv = setInterval(function() {
+        applyFixes();
+        if (++c >= 30) clearInterval(iv);
+      }, 1000);
     }
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
