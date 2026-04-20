@@ -123,6 +123,12 @@
         });
       }
 
+      var dashOpt = document.createElement('option');
+      dashOpt.value = '';
+      dashOpt.text = '-';
+      guestSelect.insertBefore(dashOpt, guestSelect.options[0]);
+      guestSelect.selectedIndex = 0;
+
       guestSelect.style.cssText = ''
         + 'display:inline-block!important;visibility:visible!important;'
         + 'width:auto;min-width:80px;padding:6px 10px;'
