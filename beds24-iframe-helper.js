@@ -104,16 +104,35 @@
     if (!getIsRoomSearch()) return;
     var hiddenInputs = document.querySelectorAll('input[type="hidden"][name^="sr1-"]');
     hiddenInputs.forEach(function(input) {
-      var offer = input.closest('.offer');
-      if (!offer) return;
-      if (offer.querySelector('.tnh-dorm-fixed')) return;
+      var priceBox = input.closest('.b24-multipricebox');
+      if (!priceBox) return;
+      if (priceBox.querySelector('.tnh-dorm-fixed')) return;
 
       var marker = document.createElement('span');
       marker.className = 'tnh-dorm-fixed';
       marker.style.display = 'none';
-      offer.appendChild(marker);
+      priceBox.appendChild(marker);
 
-      var guestSelect = offer.querySelector('select[id^="naa"]');
+      /* naa select may be inside this priceBox or in an adjacent orphan box */
+      var guestSelect = priceBox.querySelector('select[id^="naa"]');
+      var orphanBox = null;
+
+      if (!guestSelect) {
+        var offer = input.closest('.offer');
+        if (offer) {
+          var siblings = offer.querySelectorAll('.b24-multipricebox');
+          siblings.forEach(function(box) {
+            if (guestSelect) return;
+            if (box === priceBox) return;
+            if (box.querySelector('.tnh-dorm-fixed')) return;
+            if (!box.querySelector('[id^="from-"]') && box.querySelector('select[id^="naa"]')) {
+              guestSelect = box.querySelector('select[id^="naa"]');
+              orphanBox = box;
+            }
+          });
+        }
+      }
+
       if (!guestSelect) return;
 
       for (var i = 0; i < guestSelect.options.length; i++) {
@@ -142,33 +161,19 @@
         + 'background:#F7FAFC;color:#2D482D;cursor:pointer;'
         + 'margin-right:8px;';
 
-      var allBoxes = offer.querySelectorAll('.b24-multipricebox');
-      var mainBox = null;
-      var orphanBox = null;
-      allBoxes.forEach(function(box) {
-        if (box.classList.contains('hidden')) return;
-        if (box.querySelector('[id^="from-"]')) {
-          mainBox = box;
-        } else if (box.querySelector('select[id^="naa"]')) {
-          orphanBox = box;
-        }
-      });
+      var wrapper = document.createElement('span');
+      wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:8px;';
+      var label = document.createElement('span');
+      label.textContent = 'Beds:';
+      label.style.cssText = 'font-size:13px;font-weight:500;color:#5a6f5a;';
+      wrapper.appendChild(label);
+      wrapper.appendChild(guestSelect);
 
-      if (mainBox) {
-        var wrapper = document.createElement('span');
-        wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:8px;';
-        var label = document.createElement('span');
-        label.textContent = 'Beds:';
-        label.style.cssText = 'font-size:13px;font-weight:500;color:#5a6f5a;';
-        wrapper.appendChild(label);
-        wrapper.appendChild(guestSelect);
-
-        var fromPrice = mainBox.querySelector('[id^="from-"]');
-        if (fromPrice) {
-          mainBox.insertBefore(wrapper, fromPrice);
-        } else {
-          mainBox.insertBefore(wrapper, mainBox.firstChild);
-        }
+      var fromPrice = priceBox.querySelector('[id^="from-"]');
+      if (fromPrice) {
+        priceBox.insertBefore(wrapper, fromPrice);
+      } else {
+        priceBox.insertBefore(wrapper, priceBox.firstChild);
       }
 
       if (orphanBox) {
@@ -183,22 +188,10 @@
    * ============================================ */
   function injectBookButtons() {
     if (!getIsRoomSearch()) return;
-    var offers = document.querySelectorAll('.offer');
-    offers.forEach(function(offer) {
-      if (offer.querySelector('.tnh-book-btn')) return;
 
-      /* Skip unavailable rooms — Beds24 shows a warning and hides selectors */
-      var warnDiv = offer.querySelector('[class*="offerwarndiv"]');
-      if (warnDiv && !warnDiv.classList.contains('hidden')) return;
+    function injectIntoBox(priceBox, qtySelect, hiddenInput, guestSelect) {
+      if (priceBox.querySelector('.tnh-book-btn')) return;
 
-      var priceBox = offer.querySelector('.b24-multipricebox:not(.hidden)');
-      if (!priceBox) return;
-
-      var qtySelect = offer.querySelector('select[id^="sr1-"]');
-      var hiddenInput = offer.querySelector('input[type="hidden"][name^="sr1-"]');
-      var guestSelect = offer.querySelector('select[id^="naa"]');
-
-      /* Parse total from the from-price spans */
       var fromDiv = priceBox.querySelector('[id^="from-"]');
       var dollarsSpan = fromDiv ? fromDiv.querySelector('.bookingpagedollars') : null;
       var centsSpan = fromDiv ? fromDiv.querySelector('.bookingpagecents') : null;
@@ -210,11 +203,9 @@
         currency = currencySpan ? currencySpan.textContent : '\u20AC';
       }
 
-      /* Create .tnh-book-group: [total] [Book] */
       var group = document.createElement('span');
       group.className = 'tnh-book-group';
 
-      /* Total price — hidden until qty is selected */
       var totalEl = document.createElement('span');
       totalEl.className = 'tnh-total-price';
       totalEl.style.display = 'none';
@@ -234,12 +225,8 @@
         + 'color:#fff;background:#E7A35C;border:none;border-radius:6px;'
         + 'cursor:pointer;transition:background .2s;';
 
-      btn.addEventListener('mouseenter', function() {
-        btn.style.background = '#d4923e';
-      });
-      btn.addEventListener('mouseleave', function() {
-        btn.style.background = '#E7A35C';
-      });
+      btn.addEventListener('mouseenter', function() { btn.style.background = '#d4923e'; });
+      btn.addEventListener('mouseleave', function() { btn.style.background = '#E7A35C'; });
 
       btn.addEventListener('click', function(e) {
         e.preventDefault();
@@ -270,7 +257,6 @@
 
       group.appendChild(btn);
 
-      /* Create .tnh-offer-row: wraps [form-inline] and [book-group] as a single flex row */
       var offerRow = priceBox.querySelector('.tnh-offer-row');
       if (!offerRow) {
         offerRow = document.createElement('div');
@@ -282,6 +268,34 @@
         }
       }
       offerRow.appendChild(group);
+    }
+
+    var offers = document.querySelectorAll('.offer');
+    offers.forEach(function(offer) {
+      var warnDiv = offer.querySelector('[class*="offerwarndiv"]');
+      if (warnDiv && !warnDiv.classList.contains('hidden')) return;
+
+      /* Dorm: has hidden sr1- inputs but no visible sr1- select */
+      var dormInputs = offer.querySelectorAll('input[type="hidden"][name^="sr1-"]');
+      var isDorm = dormInputs.length > 0 && !offer.querySelector('select[id^="sr1-"]');
+
+      if (isDorm) {
+        /* One Book button per dorm unit (priceBox) */
+        dormInputs.forEach(function(hiddenInput) {
+          var priceBox = hiddenInput.closest('.b24-multipricebox');
+          if (!priceBox || priceBox.classList.contains('hidden')) return;
+          var guestSelect = priceBox.querySelector('select[id^="naa"]');
+          injectIntoBox(priceBox, null, hiddenInput, guestSelect);
+        });
+      } else {
+        /* Regular room: one Book button for the offer */
+        if (offer.querySelector('.tnh-book-btn')) return;
+        var priceBox = offer.querySelector('.b24-multipricebox:not(.hidden)');
+        if (!priceBox) return;
+        var qtySelect = offer.querySelector('select[id^="sr1-"]');
+        var guestSelect = offer.querySelector('select[id^="naa"]');
+        injectIntoBox(priceBox, qtySelect, null, guestSelect);
+      }
     });
   }
 
