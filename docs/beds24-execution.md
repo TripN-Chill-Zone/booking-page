@@ -246,20 +246,20 @@ The booking page matches Hostelworld-style density. See
 
 ### 4.5 Current status
 
-Phase 4 is IN PROGRESS as of Session 11.
+Phase 4 is COMPLETE for Chill Zone as of Session 12. Pending Phase 5 
+mobile QA before declaring Phase 4 done for the project.
 
-**Shipped:**
-- Base CSS architecture
-- Helper JS Sections 1, 5, 7, 8 (chrome hiding, date strip overrides, 
-  card enhancement, room sorting)
-- Widget JS with date/guest picker, iframe loading, form breakout
-
-**Pending (v3 — see session-handoff-11.md):**
-- Port mockup v13 CSS to `CSS-base.css` with `#selectors1-` fix
-- Revert helper JS to pre-rebuild state (`git show 420dd06`)
-- Externalize helper config via `TNH_CONFIG`
-- Widen widget max-width to 1290px
-- Externalize widget config via `TNH_WIDGET_CONFIG`
+**Shipped (Session 12):**
+- `CSS-base.css` — full rewrite, mockup v13 CSS verbatim + 
+  `[id^="selectors1-"]` flex fix
+- `beds24-iframe-helper.js` — reverted to pre-rebuild state 
+  (commit `420dd06`), config externalized to `window.TNH_CONFIG`
+- `booking-widget.js` — max-width widened to 1290px, config 
+  externalized to `window.TNH_WIDGET_CONFIG`
+- Chill Zone Beds24 "Insert in HTML <HEAD> bottom" — `TNH_CONFIG` 
+  object (4 rooms, emoji via JS Unicode escapes) + bootstrapper
+- Chill Zone WordPress Custom HTML block — `TNH_WIDGET_CONFIG` + 
+  bootstrapper
 
 **Not yet addressed:**
 - Confirmation page styling (requires manual paste of 
