@@ -127,7 +127,7 @@ select[id^="sr1-"],select[id^="naa"]{border:1.5px solid var(--b24-color-border)!
   .b24-offer-select .b24-multipricebox{flex-wrap:wrap!important;gap:8px!important}
   .b24-offer-select .b24-multipricebox [id^="from-"],
   .b24-offer-select .b24-multipricebox .at_offerfromdiv{
-    display:block!important;width:100%!important;order:-1!important;margin-bottom:4px!important;flex-grow:0!important;
+    display:block!important;width:100%!important;order:-1!important;margin-bottom:4px!important;flex-grow:0!important;text-align:left!important;
   }
   .tnh-price-pernight-main{font-size:12px!important}
   .tnh-tag{font-size:11px!important;padding:1px 6px!important}
