@@ -176,6 +176,33 @@ The first row of `.roomofferpricetable` shows "Check In | Check Out | Check Out 
 .roomofferpricetable tr.b24-bookingstrip { display: none !important; }
 ```
 
+## Non-ASCII Characters Stripped on Programmatic Saves to Beds24 Script Fields
+
+Beds24 strips or corrupts non-ASCII characters (emoji, accented characters, etc.) from admin fields when saved via Claude in Chrome (`textarea.value = ... + click save`). This affects at least "Insert in HTML \<HEAD\> bottom" (`customhead`). The save appears to succeed — no error, field shows correct value — but after reload, non-ASCII characters are replaced with `?`.
+
+**Symptom:** `TNH_CONFIG` saved with literal emoji (🛏 etc.) results in `{icon: "?", text: "Sleeps 2"}` after reload.
+
+**Solution:** Use JS Unicode escape sequences for any non-ASCII characters inside script fields:
+
+```js
+// Instead of: {icon: "🛏", text: "Sleeps 2"}
+// Use:        {icon: "\uD83D\uDECF", text: "Sleeps 2"}
+```
+
+Unicode escapes are pure ASCII and survive the save intact. The browser evaluates them as the correct character when the `<script>` executes. Common room tag emoji:
+
+| Emoji | Sequence |
+|-------|----------|
+| 🛏 | `\uD83D\uDECF` |
+| 🚿 | `\uD83D\uDEBF` |
+| 🏙 | `\uD83C\uDFD9` |
+| 💼 | `\uD83D\uDCBC` |
+| 👑 | `\uD83D\uDC51` |
+| 👥 | `\uD83D\uDC65` |
+| 🔌 | `\uD83D\uDD0C` |
+| 💡 | `\uD83D\uDCA1` |
+| 🔒 | `\uD83D\uDD12` |
+
 ## `display:none` Elements Contribute 0 to scrollHeight
 
 Elements hidden with `display:none` already have 0 `scrollHeight`. Attempting to subtract their heights does nothing.
