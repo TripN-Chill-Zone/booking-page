@@ -71,11 +71,13 @@
 .b24-offer-select .multiroomshow{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:nowrap!important;width:100%!important}
 .b24-offer-select .b24-multipricebox{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:nowrap!important;flex:1!important}
 .b24-offer-select .form-inline{display:flex!important;align-items:center!important;gap:var(--b24-space-sm)!important;flex-shrink:0!important}
-[id^="from-"],.b24-multipricebox [id^="from-"],.b24-multipricebox .at_offerfromdiv{display:inline-block!important;white-space:nowrap!important;flex-shrink:1!important;min-width:0!important}
+[id^="from-"],.b24-multipricebox [id^="from-"],.b24-multipricebox .at_offerfromdiv{display:inline-block!important;white-space:nowrap!important;flex-grow:1!important;min-width:0!important;order:-1!important}
 .tnh-price-pernight-main{font-size:13px!important;white-space:nowrap!important;font-weight:500!important;color:var(--b24-color-text-light)!important}
 .tnh-book-group{display:flex!important;align-items:center!important;gap:10px!important;margin-left:auto!important;flex-shrink:0!important}
 .tnh-total-price{font-size:15px!important;font-weight:700!important;color:var(--b24-color-text)!important;white-space:nowrap!important}
 .tnh-book-btn{margin-top:0!important;float:none!important;flex-shrink:0!important}
+.b24-offer-select .b24-multipricebox .tnh-offer-row{order:2!important;display:flex!important;align-items:center!important;gap:8px!important}
+.b24-offer-select .b24-multipricebox>span{order:1!important}
 .b24-multipricebox.hidden,.b24-offer-select .b24-multipricebox.hidden{display:none!important}
 
 /* Hide */
@@ -89,11 +91,12 @@ select[id^="sr1-"],select[id^="naa"]{border:1.5px solid var(--b24-color-border)!
   .b24-roompanel-heading{padding:10px 12px 2px 12px!important}
   .at_roomnametext{font-size:15px!important}
 
-  /* Flex column layout */
+  /* Grid layout: photo | desc side by side; tags + offer span full width */
   .b24panel-room > .b24panel{
-    display:flex!important;
-    flex-direction:column!important;
+    display:grid!important;
+    grid-template-columns:90px 1fr!important;
     padding:10px 12px 14px 12px!important;
+    gap:0 10px!important;
   }
 
   /* Thumbnail */
@@ -101,45 +104,33 @@ select[id^="sr1-"],select[id^="naa"]{border:1.5px solid var(--b24-color-border)!
   .b24-room-slider .carousel,.carousel.slide{width:90px!important;height:68px!important;max-height:68px!important;min-height:68px!important}
   .b24-room-slider .carousel .item.active img,[id^="collapseslider"] .carousel .item.active img,.carousel img,.carousel .item img{width:90px!important;height:68px!important}
 
-  /* Slider row: order 0 */
-  .b24panel-room > .b24panel > .row:has(.b24-room-slider){order:0!important;margin:0!important;padding:0!important}
-
-  /* Desc row: order 1, positioned beside thumb */
-  .b24panel-room > .b24panel > .row:has(.b24-room-desc){
-    order:1!important;margin:-78px 0 0 100px!important;padding:0!important;
-    display:block!important;
+  /* Grid placement */
+  .b24panel-room > .b24panel > .row:has(.b24-room-slider){grid-column:1!important;grid-row:1!important;margin:0!important;padding:0!important}
+  .b24panel-room > .b24panel > .row:has(.b24-room-desc){grid-column:2!important;grid-row:1!important;margin:0!important;padding:0!important;display:block!important}
+  .b24panel-room > .b24panel > .clearfix{display:none!important}
+  .tnh-room-tags-mobile{
+    display:flex!important;flex-wrap:wrap!important;gap:6px!important;
+    grid-column:1/-1!important;grid-row:2!important;
+    padding:8px 0!important;margin:6px 0 0 0!important;
   }
+  .b24panel-room > .b24panel > .offer{
+    grid-column:1/-1!important;grid-row:3!important;
+    padding:10px 0 0 0!important;margin:0!important;
+    border-top:1px solid var(--b24-color-border)!important;
+  }
+
+  /* Desc content */
   .b24-room-desc{height:auto!important;justify-content:flex-start!important}
   .tnh-desc-text{-webkit-line-clamp:unset!important;display:block!important;font-size:12px!important;margin:0!important}
   .b24-room-desc .tnh-room-tags{display:none!important}
 
-  .b24panel-room > .b24panel > .clearfix{display:none!important}
-
-  /* Mobile tags: order 2, full width, NO top border (removing divider) */
-  .tnh-room-tags-mobile{
-    display:flex!important;flex-wrap:wrap!important;gap:6px!important;
-    order:2!important;
-    padding:8px 0!important;
-    margin:10px 0 0 0!important;
-  }
-
-  /* Offer: order 3, at bottom with top border and proper padding */
-  .b24panel-room > .b24panel > .offer{
-    order:3!important;
-    padding:10px 0 0 0!important;
-    margin:0!important;
-    border-top:1px solid var(--b24-color-border)!important;
-  }
-
-  /* Mobile offer layout */
+  /* Mobile offer layout: price full-width first row, qty+book on second row */
   .b24-offer-select .b24-multipricebox{flex-wrap:wrap!important;gap:8px!important}
   .b24-offer-select .b24-multipricebox [id^="from-"],
   .b24-offer-select .b24-multipricebox .at_offerfromdiv{
-    display:block!important;width:100%!important;order:-1!important;margin-bottom:4px!important;
+    display:block!important;width:100%!important;order:-1!important;margin-bottom:4px!important;flex-grow:0!important;
   }
   .tnh-price-pernight-main{font-size:12px!important}
-  .b24-offer-select .form-inline{order:0!important}
-  .tnh-book-group{order:1!important;margin-left:auto!important}
   .tnh-tag{font-size:11px!important;padding:1px 6px!important}
   .tnh-total-price{font-size:14px!important}
 }
