@@ -123,10 +123,15 @@
         });
       }
 
-      var dashOpt = document.createElement('option');
-      dashOpt.value = '';
-      dashOpt.text = '-';
-      guestSelect.insertBefore(dashOpt, guestSelect.options[0]);
+      var firstOpt = guestSelect.options[0];
+      if (firstOpt && (firstOpt.value === '' || firstOpt.value === '0')) {
+        firstOpt.text = '-';
+      } else {
+        var dashOpt = document.createElement('option');
+        dashOpt.value = '';
+        dashOpt.text = '-';
+        guestSelect.insertBefore(dashOpt, firstOpt || null);
+      }
       guestSelect.selectedIndex = 0;
 
       guestSelect.style.cssText = ''
