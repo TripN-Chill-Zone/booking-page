@@ -5,21 +5,27 @@
  * CONFIG is set per-property at the top.
  */
 (function() {
+  var widgetConfig = resolveWidgetConfig();
+  if (!widgetConfig) {
+    console.error('[TNH Widget] No config found (window.TNH_WIDGET_CONFIG missing or invalid). Widget halted.');
+    return;
+  }
+
   var CONFIG = {
-    ownerid: '141266',
-    propid:  '271142',
+    ownerid: widgetConfig.ownerId,
+    propid:  widgetConfig.beds24PropId,
     cssfile: 'https://astrongpresence.com/CSS-base.css',
     minNights: 2,
     maxNights: 90,
     defaultNights: 2,
-    primaryColor: '#E7A35C',
-    secondaryColor: '#6DA17D',
-    textColor: '#2D482D',
+    primaryColor: widgetConfig.colors.primary,
+    secondaryColor: widgetConfig.colors.secondary,
+    textColor: widgetConfig.colors.text,
     textLight: '#5a7a5a',
     bgColor: '#F7FAFC',
-    borderColor: '#d4e0d4',
+    borderColor: widgetConfig.colors.border,
     secondaryHover: '#5b8d6a',
-    fontBody: "'Lexend', sans-serif",
+    fontBody: "'" + widgetConfig.fonts.body + "', sans-serif",
     fontHeading: "'Lexend Giga', sans-serif",
     fontsUrl: 'https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600&family=Lexend+Giga:wght@400;600&display=swap'
   };
@@ -40,7 +46,7 @@
     +   '--tnh-border:' + CONFIG.borderColor + ';'
     +   '--tnh-secondary-hover:' + CONFIG.secondaryHover + ';'
     +   'font-family:' + CONFIG.fontBody + ';'
-    +   'color:var(--tnh-text);max-width:700px;margin:0 auto;padding:0;box-sizing:border-box;'
+    +   'color:var(--tnh-text);max-width:1290px;margin:0 auto;padding:0;box-sizing:border-box;'
     + '}'
     + '.tnh-booking-widget *{box-sizing:border-box}'
     + '.tnh-booking-card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(45,72,45,.08);padding:28px 28px 24px;border:1px solid var(--tnh-border)}'
@@ -388,3 +394,18 @@
     showResults(cin, cout, nights, guestsEl.value);
   });
 })();
+
+function resolveWidgetConfig() {
+  if (window.TNH_WIDGET_CONFIG && isValidWidgetConfig(window.TNH_WIDGET_CONFIG)) {
+    return window.TNH_WIDGET_CONFIG;
+  }
+  // Future: fetch path for hosted-tier clients will be added here.
+  return null;
+}
+
+function isValidWidgetConfig(c) {
+  return c
+    && c.schemaVersion === 1
+    && typeof c.ownerId === 'string'
+    && typeof c.propertyId === 'string';
+}

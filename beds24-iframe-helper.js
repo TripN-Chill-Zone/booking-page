@@ -16,6 +16,12 @@
  * - All previous: lazy page detection, bookmult, checkout in iframe, dorm fix
  */
 (function(){
+  var config = resolveConfig();
+  if (!config) {
+    console.error('[TNH] No config found (window.TNH_CONFIG missing or invalid). Helper halted.');
+    return;
+  }
+
   var isWidget = location.search.indexOf('referer=widget') >= 0;
   var isEmbedded = window.parent !== window;
 
@@ -381,33 +387,10 @@
    * - Inject mobile tags (direct child of .b24panel)
    * - Change qty placeholder to "-"
    * ============================================ */
-  var ROOM_TAGS = {
-    '567218': [
-      { icon: '\uD83D\uDECF', text: 'Sleeps 2' },
-      { icon: '\uD83D\uDEBF', text: 'Ensuite' },
-      { icon: '\uD83C\uDFD9', text: 'City View' },
-      { icon: '\uD83D\uDCBC', text: 'Work Desk' },
-      { icon: '\uD83D\uDC51', text: 'Premium' }
-    ],
-    '567220': [
-      { icon: '\uD83D\uDECF', text: 'Sleeps 1' },
-      { icon: '\uD83D\uDEBF', text: 'Shared Bathroom' },
-      { icon: '\uD83D\uDCBC', text: 'Work Desk' },
-      { icon: '\uD83D\uDD12', text: 'Private' }
-    ],
-    '567221': [
-      { icon: '\uD83D\uDECF', text: 'Sleeps 2' },
-      { icon: '\uD83D\uDEBF', text: 'Shared Bathroom' },
-      { icon: '\uD83D\uDCBC', text: 'Work Desk' },
-      { icon: '\uD83D\uDD12', text: 'Private' }
-    ],
-    '567219': [
-      { icon: '\uD83D\uDECF', text: '1 Bed' },
-      { icon: '\uD83D\uDC65', text: '4-Bed Dorm' },
-      { icon: '\uD83D\uDD0C', text: 'Power Outlet' },
-      { icon: '\uD83D\uDCA1', text: 'Reading Light' }
-    ]
-  };
+  var ROOM_TAGS = {};
+  config.rooms.forEach(function(room) {
+    ROOM_TAGS[String(room.id)] = room.tags;
+  });
 
   function buildTagsDiv(tags, className) {
     var container = document.createElement('div');
@@ -586,3 +569,15 @@
     init();
   }
 })();
+
+function resolveConfig() {
+  if (window.TNH_CONFIG && isValidConfig(window.TNH_CONFIG)) {
+    return window.TNH_CONFIG;
+  }
+  // Future: fetch path for hosted-tier clients will be added here.
+  return null;
+}
+
+function isValidConfig(c) {
+  return c && c.schemaVersion === 1 && Array.isArray(c.rooms);
+}
