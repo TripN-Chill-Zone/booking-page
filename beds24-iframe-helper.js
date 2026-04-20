@@ -448,11 +448,19 @@
       }
     });
 
-    /* Change qty dropdown placeholder from "Quantity" to "-" */
+    /* Change qty dropdown: placeholder → "-", numbers → "1 room", "2 rooms" etc. */
     var qtySelects = document.querySelectorAll('select[id^="sr1-"]');
     qtySelects.forEach(function(sel) {
-      if (sel.options[0] && (sel.options[0].text === 'Quantity' || sel.options[0].value === '0')) {
-        sel.options[0].text = '-';
+      for (var i = 0; i < sel.options.length; i++) {
+        var opt = sel.options[i];
+        if (i === 0 && (opt.text === 'Quantity' || opt.value === '0')) {
+          opt.text = '-';
+        } else {
+          var n = parseInt(opt.value, 10);
+          if (!isNaN(n) && n > 0) {
+            opt.text = n === 1 ? '1 room' : n + ' rooms';
+          }
+        }
       }
     });
   }
