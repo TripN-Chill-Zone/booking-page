@@ -103,8 +103,7 @@
   function fixDormRooms() {
     if (!getIsRoomSearch()) return;
 
-    /* Build dorm map from config: dormRoomIds[id] = room object.
-       Also cover hidden sr1- inputs (multi-room mode) for any dorm not in config. */
+    /* Build dorm map from config + hidden sr1- inputs (multi-room mode fallback) */
     var dormRoomIds = {};
     config.rooms.forEach(function(r) {
       if (r.isDorm) dormRoomIds[String(r.id)] = r;
@@ -120,10 +119,8 @@
       var offer = roomEl.querySelector('.offer');
       if (!offer) return;
 
-      /* Find main priceBox: prefer the one with a from- price div */
       var boxes = offer.querySelectorAll('.b24-multipricebox');
       var priceBox = null;
-      var orphanBox = null;
       boxes.forEach(function(box) {
         if (!priceBox && box.querySelector('[id^="from-"]')) priceBox = box;
       });
@@ -137,67 +134,19 @@
       marker.style.display = 'none';
       priceBox.appendChild(marker);
 
-      /* Find naa select: first in priceBox, then in adjacent orphan box */
-      var guestSelect = priceBox.querySelector('select[id^="naa"]');
-      if (!guestSelect) {
-        boxes.forEach(function(box) {
-          if (guestSelect || box === priceBox) return;
-          var naa = box.querySelector('select[id^="naa"]');
-          if (naa) {
-            guestSelect = naa;
-            if (!box.querySelector('[id^="from-"]')) orphanBox = box;
-          }
-        });
-      }
+      /* Find native naa anywhere in offer — used for form submission sync.
+         Don't try to show it: CSS hides it and fighting !important is fragile.
+         We create our own visible select instead. */
+      var naaSelect = offer.querySelector('select[id^="naa"]');
 
-      if (!guestSelect) return;
+      /* Hide the orphan box that contains the native naa */
+      boxes.forEach(function(box) {
+        if (box !== priceBox && !box.querySelector('[id^="from-"]') && box.querySelector('select[id^="naa"]')) {
+          box.style.setProperty('display', 'none', 'important');
+        }
+      });
 
-      for (var i = 0; i < guestSelect.options.length; i++) {
-        var opt = guestSelect.options[i];
-        opt.text = opt.text.replace(/Guests?/g, function(m) {
-          return m === 'Guest' ? 'Bed' : 'Beds';
-        });
-      }
-
-      var firstOpt = guestSelect.options[0];
-      if (firstOpt && (firstOpt.value === '' || firstOpt.value === '0')) {
-        firstOpt.text = '-';
-      } else {
-        var dashOpt = document.createElement('option');
-        dashOpt.value = '';
-        dashOpt.text = '-';
-        guestSelect.insertBefore(dashOpt, firstOpt || null);
-      }
-      guestSelect.selectedIndex = 0;
-
-      guestSelect.style.cssText = ''
-        + 'display:inline-block!important;visibility:visible!important;'
-        + 'width:auto;min-width:80px;padding:6px 10px;'
-        + 'font-family:inherit;font-size:14px;'
-        + 'border:1.5px solid #d4e0d4;border-radius:6px;'
-        + 'background:#F7FAFC;color:#2D482D;cursor:pointer;'
-        + 'margin-right:8px;';
-
-      var wrapper = document.createElement('span');
-      wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:8px;';
-      var label = document.createElement('span');
-      label.textContent = 'Beds:';
-      label.style.cssText = 'font-size:13px;font-weight:500;color:#5a6f5a;';
-      wrapper.appendChild(label);
-      wrapper.appendChild(guestSelect);
-
-      var fromPrice = priceBox.querySelector('[id^="from-"]');
-      if (fromPrice) {
-        priceBox.insertBefore(wrapper, fromPrice);
-      } else {
-        priceBox.insertBefore(wrapper, priceBox.firstChild);
-      }
-
-      if (orphanBox) {
-        orphanBox.style.setProperty('display', 'none', 'important');
-      }
-
-      /* Inject options 2..numBeds from config tag "N-Bed Dorm" */
+      /* Get dorm capacity from config tag "N-Bed Dorm" */
       var configRoom = dormRoomIds[dormRoomId];
       var numBeds = 1;
       if (configRoom && configRoom.tags) {
@@ -206,18 +155,50 @@
           if (m) numBeds = parseInt(m[1], 10);
         });
       }
-      if (numBeds > 1) {
-        var existingMax = 0;
-        for (var i = 0; i < guestSelect.options.length; i++) {
-          var v = parseInt(guestSelect.options[i].value, 10);
-          if (!isNaN(v) && v > 0 && v > existingMax) existingMax = v;
-        }
-        for (var n = existingMax + 1; n <= numBeds; n++) {
-          var newOpt = document.createElement('option');
-          newOpt.value = String(n);
-          newOpt.text = n + ' Beds';
-          guestSelect.appendChild(newOpt);
-        }
+
+      /* Create our own visible bed selector — no CSS battles */
+      var dormSelect = document.createElement('select');
+      dormSelect.className = 'tnh-dorm-select';
+      dormSelect.style.cssText = ''
+        + 'width:auto;min-width:80px;padding:6px 10px;'
+        + 'font-family:inherit;font-size:14px;'
+        + 'border:1.5px solid #d4e0d4;border-radius:6px;'
+        + 'background:#F7FAFC;color:#2D482D;cursor:pointer;'
+        + 'margin-right:8px;';
+
+      var dashOpt = document.createElement('option');
+      dashOpt.value = '';
+      dashOpt.text = '-';
+      dormSelect.appendChild(dashOpt);
+      for (var i = 1; i <= numBeds; i++) {
+        var opt = document.createElement('option');
+        opt.value = String(i);
+        opt.text = i === 1 ? '1 Bed' : i + ' Beds';
+        dormSelect.appendChild(opt);
+      }
+      dormSelect.selectedIndex = 0;
+
+      /* Sync custom select → native naa on change so form submits correctly */
+      if (naaSelect) {
+        dormSelect.addEventListener('change', function() {
+          naaSelect.value = this.value || '0';
+          naaSelect.dispatchEvent(new Event('change', {bubbles: true}));
+        });
+      }
+
+      var wrapper = document.createElement('span');
+      wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:8px;';
+      var label = document.createElement('span');
+      label.textContent = 'Beds:';
+      label.style.cssText = 'font-size:13px;font-weight:500;color:#5a6f5a;';
+      wrapper.appendChild(label);
+      wrapper.appendChild(dormSelect);
+
+      var fromPrice = priceBox.querySelector('[id^="from-"]');
+      if (fromPrice) {
+        priceBox.insertBefore(wrapper, fromPrice);
+      } else {
+        priceBox.insertBefore(wrapper, priceBox.firstChild);
       }
     });
   }
@@ -277,10 +258,12 @@
           }
         }
         if (guestSelect) {
-          if (guestSelect.value === '0' || guestSelect.value === '') {
-            guestSelect.value = '1';
-            guestSelect.dispatchEvent(new Event('change', {bubbles: true}));
-          }
+          /* Prefer value from custom dorm select if present, else native naa */
+          var dormSel = priceBox.querySelector('.tnh-dorm-select');
+          var val = dormSel ? dormSel.value : guestSelect.value;
+          if (!val || val === '0') val = '1';
+          guestSelect.value = val;
+          guestSelect.dispatchEvent(new Event('change', {bubbles: true}));
         }
         var form = document.getElementById('formlook');
         if (form) {
@@ -320,11 +303,12 @@
       var isDorm = dormInputs.length > 0 && !offer.querySelector('select[id^="sr1-"]');
 
       if (isDorm) {
-        /* One Book button per dorm unit (priceBox) */
+        /* One Book button per dorm unit (priceBox).
+           naa select may be in orphan box, not priceBox — search whole offer. */
         dormInputs.forEach(function(hiddenInput) {
           var priceBox = hiddenInput.closest('.b24-multipricebox');
           if (!priceBox || priceBox.classList.contains('hidden')) return;
-          var guestSelect = priceBox.querySelector('select[id^="naa"]');
+          var guestSelect = offer.querySelector('select[id^="naa"]');
           injectIntoBox(priceBox, null, hiddenInput, guestSelect);
         });
       } else {
@@ -368,9 +352,12 @@
   function enhancePrices() {
     if (!getIsRoomSearch()) return;
     try {
-      var nightsEl = document.querySelector('#inputnumnight');
-      if (!nightsEl) return;
-      var nights = parseInt(nightsEl.value, 10);
+      /* Read nights from iframe URL params (reliable) — falls back to DOM element */
+      var nights = parseInt(new URLSearchParams(location.search).get('numnight'), 10);
+      if (!nights || nights < 1) {
+        var nightsEl = document.querySelector('#inputnumnight');
+        if (nightsEl) nights = parseInt(nightsEl.value, 10);
+      }
       if (!nights || nights < 1) return;
 
       var fromDivs = document.querySelectorAll('[id^="from-1-"]');
