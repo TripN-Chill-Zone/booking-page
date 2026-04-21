@@ -179,6 +179,30 @@
       if (orphanBox) {
         orphanBox.style.setProperty('display', 'none', 'important');
       }
+
+      var dormRoomId = input.name.replace(/^sr1-/, '');
+      var numBeds = 1;
+      config.rooms.forEach(function(r) {
+        if (String(r.id) === dormRoomId && r.isDorm && r.tags) {
+          r.tags.forEach(function(tag) {
+            var m = tag.text && tag.text.match(/^(\d+)-Bed Dorm$/i);
+            if (m) numBeds = parseInt(m[1], 10);
+          });
+        }
+      });
+      if (numBeds > 1) {
+        var existingMax = 0;
+        for (var i = 0; i < guestSelect.options.length; i++) {
+          var v = parseInt(guestSelect.options[i].value, 10);
+          if (!isNaN(v) && v > 0 && v > existingMax) existingMax = v;
+        }
+        for (var n = existingMax + 1; n <= numBeds; n++) {
+          var newOpt = document.createElement('option');
+          newOpt.value = String(n);
+          newOpt.text = n + ' Beds';
+          guestSelect.appendChild(newOpt);
+        }
+      }
     });
   }
 

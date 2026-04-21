@@ -326,7 +326,7 @@
       + '&propid=' + CONFIG.propid
       + '&checkin=' + formatDateBeds24(cin)
       + '&numnight=' + nights
-      + '&numadult=' + guests
+      + '&numadult=1'
       + '&referer=widget'
       + '&cssfile=' + encodeURIComponent(CONFIG.cssfile + '?v=' + Date.now());
 
