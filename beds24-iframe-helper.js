@@ -102,10 +102,34 @@
    * ============================================ */
   function fixDormRooms() {
     if (!getIsRoomSearch()) return;
-    var hiddenInputs = document.querySelectorAll('input[type="hidden"][name^="sr1-"]');
-    hiddenInputs.forEach(function(input) {
-      var priceBox = input.closest('.b24-multipricebox');
+
+    /* Build dorm map from config: dormRoomIds[id] = room object.
+       Also cover hidden sr1- inputs (multi-room mode) for any dorm not in config. */
+    var dormRoomIds = {};
+    config.rooms.forEach(function(r) {
+      if (r.isDorm) dormRoomIds[String(r.id)] = r;
+    });
+    document.querySelectorAll('input[type="hidden"][name^="sr1-"]').forEach(function(input) {
+      var id = input.name.replace(/^sr1-/, '');
+      if (!dormRoomIds[id]) dormRoomIds[id] = null;
+    });
+
+    Object.keys(dormRoomIds).forEach(function(dormRoomId) {
+      var roomEl = document.getElementById('roomid' + dormRoomId);
+      if (!roomEl) return;
+      var offer = roomEl.querySelector('.offer');
+      if (!offer) return;
+
+      /* Find main priceBox: prefer the one with a from- price div */
+      var boxes = offer.querySelectorAll('.b24-multipricebox');
+      var priceBox = null;
+      var orphanBox = null;
+      boxes.forEach(function(box) {
+        if (!priceBox && box.querySelector('[id^="from-"]')) priceBox = box;
+      });
+      if (!priceBox && boxes.length > 0) priceBox = boxes[0];
       if (!priceBox) return;
+
       if (priceBox.querySelector('.tnh-dorm-fixed')) return;
 
       var marker = document.createElement('span');
@@ -113,24 +137,17 @@
       marker.style.display = 'none';
       priceBox.appendChild(marker);
 
-      /* naa select may be inside this priceBox or in an adjacent orphan box */
+      /* Find naa select: first in priceBox, then in adjacent orphan box */
       var guestSelect = priceBox.querySelector('select[id^="naa"]');
-      var orphanBox = null;
-
       if (!guestSelect) {
-        var offer = input.closest('.offer');
-        if (offer) {
-          var siblings = offer.querySelectorAll('.b24-multipricebox');
-          siblings.forEach(function(box) {
-            if (guestSelect) return;
-            if (box === priceBox) return;
-            if (box.querySelector('.tnh-dorm-fixed')) return;
-            if (!box.querySelector('[id^="from-"]') && box.querySelector('select[id^="naa"]')) {
-              guestSelect = box.querySelector('select[id^="naa"]');
-              orphanBox = box;
-            }
-          });
-        }
+        boxes.forEach(function(box) {
+          if (guestSelect || box === priceBox) return;
+          var naa = box.querySelector('select[id^="naa"]');
+          if (naa) {
+            guestSelect = naa;
+            if (!box.querySelector('[id^="from-"]')) orphanBox = box;
+          }
+        });
       }
 
       if (!guestSelect) return;
@@ -180,16 +197,15 @@
         orphanBox.style.setProperty('display', 'none', 'important');
       }
 
-      var dormRoomId = input.name.replace(/^sr1-/, '');
+      /* Inject options 2..numBeds from config tag "N-Bed Dorm" */
+      var configRoom = dormRoomIds[dormRoomId];
       var numBeds = 1;
-      config.rooms.forEach(function(r) {
-        if (String(r.id) === dormRoomId && r.isDorm && r.tags) {
-          r.tags.forEach(function(tag) {
-            var m = tag.text && tag.text.match(/^(\d+)-Bed Dorm$/i);
-            if (m) numBeds = parseInt(m[1], 10);
-          });
-        }
-      });
+      if (configRoom && configRoom.tags) {
+        configRoom.tags.forEach(function(tag) {
+          var m = tag.text && tag.text.match(/^(\d+)-Bed Dorm$/i);
+          if (m) numBeds = parseInt(m[1], 10);
+        });
+      }
       if (numBeds > 1) {
         var existingMax = 0;
         for (var i = 0; i < guestSelect.options.length; i++) {
@@ -260,7 +276,7 @@
             qtySelect.dispatchEvent(new Event('change', {bubbles: true}));
           }
         }
-        if (hiddenInput && guestSelect) {
+        if (guestSelect) {
           if (guestSelect.value === '0' || guestSelect.value === '') {
             guestSelect.value = '1';
             guestSelect.dispatchEvent(new Event('change', {bubbles: true}));
