@@ -99,43 +99,35 @@
 
   /* ============================================
    * SECTION 3: Dorm booking fix
+   * Moves native naa select from BOX 1 into BOX 0,
+   * shows it with inline !important, adds bed options.
+   * See docs/skill/dom-structure.md §8 for box structure.
    * ============================================ */
   function fixDormRooms() {
     if (!getIsRoomSearch()) return;
 
-    /* Use same offer-scan approach as injectBookButtons (proven to find dorm) */
-    var offers = document.querySelectorAll('.offer');
-    offers.forEach(function(offer) {
-      var dormInputs = offer.querySelectorAll('input[type="hidden"][name^="sr1-"]');
-      if (!dormInputs.length || offer.querySelector('select[id^="sr1-"]')) return;
-
-      /* Find priceBox: the .b24-multipricebox that has the from- price div */
-      var boxes = offer.querySelectorAll('.b24-multipricebox');
-      var priceBox = null;
-      for (var bi = 0; bi < boxes.length; bi++) {
-        if (boxes[bi].querySelector('[id^="from-"]')) { priceBox = boxes[bi]; break; }
-      }
-      if (!priceBox) priceBox = boxes[0] || null;
+    var dormInputs = document.querySelectorAll('input[type="hidden"][name^="sr1-"]');
+    dormInputs.forEach(function(dormInput) {
+      /* BOX 0: the .b24-multipricebox that contains the hidden sr1- input */
+      var priceBox = dormInput.closest('.b24-multipricebox');
       if (!priceBox) return;
+      if (priceBox.querySelector('.tnh-dorm-label')) return; /* already processed */
 
-      if (priceBox.querySelector('.tnh-dorm-select')) return; /* already processed */
+      var offer = priceBox.closest('.offer');
+      if (!offer) return;
 
-      console.log('[TNH] fixDormRooms: processing priceBox', priceBox.id || priceBox.className);
-
-      /* Find native naa anywhere in offer for form submission sync */
+      /* naaSelect lives in BOX 1 (orphan box, no from-price) */
       var naaSelect = offer.querySelector('select[id^="naa"]');
-      console.log('[TNH] fixDormRooms: naaSelect found =', !!naaSelect);
+      if (!naaSelect) return;
 
-      /* Hide orphan box containing native naa */
-      for (var bi2 = 0; bi2 < boxes.length; bi2++) {
-        var box = boxes[bi2];
-        if (box !== priceBox && !box.querySelector('[id^="from-"]')) {
-          box.style.setProperty('display', 'none', 'important');
-        }
-      }
+      /* Hide BOX 1 — after we move naaSelect out it's empty */
+      var boxes = offer.querySelectorAll('.b24-multipricebox');
+      boxes.forEach(function(box) {
+        if (box !== priceBox) box.style.setProperty('display', 'none', 'important');
+      });
 
-      /* Get dorm capacity from config tag "N-Bed Dorm" */
-      var dormRoomId = dormInputs[0].name.replace(/^sr1-/, '');
+      /* Get bed count from config tag "N-Bed Dorm" */
+      var dormRoomId = dormInput.name.replace(/^sr1-/, '');
       var numBeds = 1;
       config.rooms.forEach(function(r) {
         if (String(r.id) === dormRoomId && r.isDorm && r.tags) {
@@ -145,45 +137,51 @@
           });
         }
       });
-      console.log('[TNH] fixDormRooms: numBeds =', numBeds, 'dormRoomId =', dormRoomId);
 
-      /* Create visible bed selector — new element, no CSS conflicts */
-      var dormSelect = document.createElement('select');
-      dormSelect.className = 'tnh-dorm-select';
-      dormSelect.style.cssText = ''
-        + 'width:auto;min-width:80px;padding:6px 10px;'
-        + 'font-family:inherit;font-size:14px;'
+      /* Add missing options — Beds24 only generates up to numadult beds */
+      var existingMax = 0;
+      for (var i = 0; i < naaSelect.options.length; i++) {
+        var v = parseInt(naaSelect.options[i].value, 10);
+        if (!isNaN(v) && v > existingMax) existingMax = v;
+      }
+      for (var n = existingMax + 1; n <= numBeds; n++) {
+        var newOpt = document.createElement('option');
+        newOpt.value = String(n);
+        newOpt.text = n + ' Bed' + (n === 1 ? '' : 's');
+        naaSelect.appendChild(newOpt);
+      }
+
+      /* Relabel: "0 Guests" → "-", "N Guest(s)" → "N Bed(s)" */
+      for (var j = 0; j < naaSelect.options.length; j++) {
+        var o = naaSelect.options[j];
+        if (o.value === '0' || o.value === '') {
+          o.text = '-';
+        } else {
+          o.text = o.text.replace(/(\d+)\s*Guests?$/i, function(_, num) {
+            var k = parseInt(num, 10);
+            return k + ' Bed' + (k === 1 ? '' : 's');
+          });
+        }
+      }
+
+      /* Show naaSelect — inline !important beats CSS-base.css display:none!important */
+      naaSelect.style.cssText = ''
+        + 'display:inline-block!important;'
+        + 'visibility:visible!important;'
+        + 'width:auto;min-width:80px;padding:4px 8px;'
+        + 'font-family:inherit;font-size:13px;'
         + 'border:1.5px solid #d4e0d4;border-radius:6px;'
-        + 'background:#F7FAFC;color:#2D482D;cursor:pointer;'
-        + 'margin-right:8px;vertical-align:middle;';
+        + 'background:#F7FAFC;color:#2D482D;cursor:pointer;';
 
-      var dashOpt = document.createElement('option');
-      dashOpt.value = '';
-      dashOpt.text = '-';
-      dormSelect.appendChild(dashOpt);
-      for (var i = 1; i <= numBeds; i++) {
-        var opt = document.createElement('option');
-        opt.value = String(i);
-        opt.text = i === 1 ? '1 Bed' : i + ' Beds';
-        dormSelect.appendChild(opt);
-      }
-      dormSelect.selectedIndex = 0;
-
-      if (naaSelect) {
-        dormSelect.addEventListener('change', function() {
-          naaSelect.value = this.value || '0';
-          naaSelect.dispatchEvent(new Event('change', {bubbles: true}));
-        });
-      }
-
-      /* Use display:contents wrapper — children become direct flex items in priceBox */
+      /* Move naaSelect into BOX 0 with "Beds:" label, before the from-price */
       var wrapper = document.createElement('span');
-      wrapper.style.cssText = 'display:contents;';
+      wrapper.className = 'tnh-dorm-label';
+      wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:6px;flex-shrink:0;';
       var label = document.createElement('span');
       label.textContent = 'Beds:';
       label.style.cssText = 'font-size:13px;font-weight:500;color:#5a6f5a;white-space:nowrap;';
       wrapper.appendChild(label);
-      wrapper.appendChild(dormSelect);
+      wrapper.appendChild(naaSelect);
 
       var fromPrice = priceBox.querySelector('[id^="from-"]');
       if (fromPrice) {
@@ -191,7 +189,6 @@
       } else {
         priceBox.insertBefore(wrapper, priceBox.firstChild);
       }
-      console.log('[TNH] fixDormRooms: wrapper inserted, dormSelect in DOM =', document.contains(dormSelect));
     });
   }
 
@@ -250,9 +247,7 @@
           }
         }
         if (guestSelect) {
-          /* Prefer value from custom dorm select if present, else native naa */
-          var dormSel = priceBox.querySelector('.tnh-dorm-select');
-          var val = dormSel ? dormSel.value : guestSelect.value;
+          var val = guestSelect.value;
           if (!val || val === '0') val = '1';
           guestSelect.value = val;
           guestSelect.dispatchEvent(new Event('change', {bubbles: true}));
