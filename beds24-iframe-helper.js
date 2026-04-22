@@ -349,68 +349,52 @@
 
       var fromDivs = document.querySelectorAll('[id^="from-1-"]');
       fromDivs.forEach(function(fromDiv) {
-        if (!fromDiv.dataset.tnhTotal) {
-          var dollarsSpan = fromDiv.querySelector('.bookingpagedollars');
-          var centsSpan = fromDiv.querySelector('.bookingpagecents');
-          if (!dollarsSpan || !centsSpan) return;
+        /* Always re-read from native spans — handles qty/naa changes updating the price */
+        var dollarsSpan = fromDiv.querySelector('.bookingpagedollars');
+        var centsSpan = fromDiv.querySelector('.bookingpagecents');
+        if (!dollarsSpan || !centsSpan) return;
 
-          var dollars = parseInt(dollarsSpan.textContent, 10);
-          var centsText = centsSpan.textContent.replace('.', '');
-          var centsNum = parseInt(centsText, 10) || 0;
-          var total = dollars + (centsNum / 100);
-          if (isNaN(total) || total <= 0) return;
-
-          var currencySpan = fromDiv.querySelector('.bookingpagecurrency');
-          var currency = currencySpan ? currencySpan.textContent : '\u20AC';
-
-          fromDiv.dataset.tnhTotal = total.toFixed(2);
-          fromDiv.dataset.tnhCurrency = currency;
-        }
-
-        var total = parseFloat(fromDiv.dataset.tnhTotal);
-        var currency = fromDiv.dataset.tnhCurrency;
+        var dollars = parseInt(dollarsSpan.textContent, 10);
+        var centsText = centsSpan.textContent.replace('.', '');
+        var centsNum = parseInt(centsText, 10) || 0;
+        var total = dollars + (centsNum / 100);
         if (isNaN(total) || total <= 0) return;
 
-        var hasHidden = fromDiv.classList.contains('hidden');
-        var currentState = fromDiv.dataset.tnhState || '';
+        var currencySpan = fromDiv.querySelector('.bookingpagecurrency');
+        var currency = currencySpan ? currencySpan.textContent : '\u20AC';
+
+        /* Hide native spans — keep in DOM so Beds24 can still update them */
+        dollarsSpan.style.display = 'none';
+        centsSpan.style.display = 'none';
+        if (currencySpan) currencySpan.style.display = 'none';
+
+        /* Update or create per-night span */
         var perNight = nights > 1 ? (total / nights) : total;
-
-        /* Always keep the from-price visible with per-night display */
-        if (currentState !== 'pernight') {
-          fromDiv.dataset.tnhState = 'pernight';
-          /* Override Beds24's .hidden class — from-price should always show */
-          fromDiv.style.setProperty('display', 'block', 'important');
-          fromDiv.classList.remove('hidden');
-
-          if (nights > 1) {
-            fromDiv.innerHTML = '';
-            var mainSpan = document.createElement('span');
-            mainSpan.className = 'tnh-price-pernight-main';
-            mainSpan.textContent = 'from ' + currency + perNight.toFixed(2) + ' / night';
-            fromDiv.appendChild(mainSpan);
-          }
+        var perNightSpan = fromDiv.querySelector('.tnh-price-pernight-main');
+        if (!perNightSpan) {
+          perNightSpan = document.createElement('span');
+          perNightSpan.className = 'tnh-price-pernight-main';
+          fromDiv.insertBefore(perNightSpan, fromDiv.firstChild);
         }
+        perNightSpan.textContent = 'from ' + currency + perNight.toFixed(2) + ' / night';
 
-        /* Show/hide total price based on qty selection */
+        /* Keep fromDiv visible — Beds24 adds .hidden on qty selection */
+        fromDiv.style.setProperty('display', 'block', 'important');
+        fromDiv.classList.remove('hidden');
+
+        /* Show total price when a qty or bed count is selected */
         var offer = fromDiv.closest('.offer');
         var totalEl = offer ? offer.querySelector('.tnh-total-price') : null;
         if (totalEl) {
-          if (hasHidden) {
-            /* Qty is selected — Beds24 added .hidden to fromDiv, show total */
-            /* Keep fromDiv visible (already handled above) but also show total */
-            fromDiv.style.setProperty('display', 'block', 'important');
-            var updatedTotal = total;
-            var rawDollars = fromDiv.querySelector('.bookingpagedollars');
-            var rawCents = fromDiv.querySelector('.bookingpagecents');
-            if (rawDollars && rawCents) {
-              var d = parseInt(rawDollars.textContent, 10);
-              var c = parseInt(rawCents.textContent.replace('.', ''), 10) || 0;
-              if (!isNaN(d)) updatedTotal = d + (c / 100);
-            }
-            totalEl.textContent = currency + updatedTotal.toFixed(2);
+          var qtySelect = offer.querySelector('select[id^="sr1-"]');
+          var naaSelect = offer.querySelector('select[id^="naa"]');
+          var qty = 0;
+          if (qtySelect) qty = parseInt(qtySelect.value, 10) || 0;
+          if (!qty && naaSelect) qty = parseInt(naaSelect.value, 10) || 0;
+          if (qty > 0) {
+            totalEl.textContent = currency + total.toFixed(2);
             totalEl.style.display = '';
           } else {
-            /* No qty selected — hide total */
             totalEl.style.display = 'none';
             totalEl.textContent = '';
           }
