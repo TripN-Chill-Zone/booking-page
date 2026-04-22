@@ -202,6 +202,22 @@
     function injectIntoBox(priceBox, qtySelect, hiddenInput, guestSelect) {
       if (priceBox.querySelector('.tnh-book-btn')) return;
 
+      /* Add change listener on whichever select drives this room's booking.
+         Beds24 AJAX briefly adds .hidden to the from-price div during a price
+         update; the MutationObserver debounces 300 ms before we fix it back.
+         This listener fires immediately on selection and keeps the div visible,
+         preventing the Book button from jumping upward on mobile. */
+      [qtySelect, guestSelect].forEach(function(sel) {
+        if (!sel) return;
+        sel.addEventListener('change', function() {
+          var fromDiv = priceBox.querySelector('[id^="from-"]');
+          if (fromDiv) {
+            fromDiv.style.setProperty('display', 'block', 'important');
+            fromDiv.classList.remove('hidden');
+          }
+        });
+      });
+
       var fromDiv = priceBox.querySelector('[id^="from-"]');
       var dollarsSpan = fromDiv ? fromDiv.querySelector('.bookingpagedollars') : null;
       var centsSpan = fromDiv ? fromDiv.querySelector('.bookingpagecents') : null;
@@ -371,6 +387,13 @@
         centsSpan.style.display = 'none';
         if (currencySpan) currencySpan.style.display = 'none';
 
+        /* Blank the raw "from " text node Beds24 writes as direct DOM text.
+           Our tnh-price-pernight-main already starts with "from", so without
+           this step both appear: "from €31.00 / nightfrom". */
+        Array.prototype.forEach.call(fromDiv.childNodes, function(node) {
+          if (node.nodeType === 3 && node.data.trim()) node.data = '';
+        });
+
         /* Update or create per-night span */
         var perNight = nights > 1 ? (total / nights) : total;
         var perNightSpan = fromDiv.querySelector('.tnh-price-pernight-main');
@@ -463,7 +486,8 @@
       }
     });
 
-    /* Change qty dropdown: placeholder → "-", numbers → "1 room", "2 rooms" etc. */
+    /* Change qty dropdown: placeholder → "-", numbers → "1 room", "2 rooms" etc.
+       Also inject a "Select" label immediately before each qty dropdown. */
     var qtySelects = document.querySelectorAll('select[id^="sr1-"]');
     qtySelects.forEach(function(sel) {
       for (var i = 0; i < sel.options.length; i++) {
@@ -476,6 +500,14 @@
             opt.text = n === 1 ? '1 room' : n + ' rooms';
           }
         }
+      }
+      /* Inject "Select" label to the left of the dropdown (once only) */
+      if (!sel.parentNode.querySelector('.tnh-select-label')) {
+        var lbl = document.createElement('span');
+        lbl.className = 'tnh-select-label';
+        lbl.style.cssText = 'font-size:13px;font-weight:500;color:#5a6f5a;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;';
+        lbl.textContent = 'Select';
+        sel.parentNode.insertBefore(lbl, sel);
       }
     });
   }
