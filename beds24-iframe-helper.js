@@ -218,7 +218,10 @@
 
       var totalEl = document.createElement('span');
       totalEl.className = 'tnh-total-price';
-      totalEl.style.display = 'none';
+      /* Placeholder text reserves layout space so Book button never shifts position.
+         visibility:hidden keeps it invisible until a qty/bed is selected. */
+      totalEl.textContent = currency + '0000.00';
+      totalEl.style.visibility = 'hidden';
       if (total > 0) {
         totalEl.dataset.tnhTotal = total.toFixed(2);
         totalEl.dataset.tnhCurrency = currency;
@@ -393,10 +396,10 @@
           if (!qty && naaSelect) qty = parseInt(naaSelect.value, 10) || 0;
           if (qty > 0) {
             totalEl.textContent = currency + total.toFixed(2);
-            totalEl.style.display = '';
+            totalEl.style.visibility = 'visible';
           } else {
-            totalEl.style.display = 'none';
-            totalEl.textContent = '';
+            totalEl.textContent = currency + '0000.00';
+            totalEl.style.visibility = 'hidden';
           }
         }
       });
