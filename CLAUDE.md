@@ -4,9 +4,11 @@
 
 Every session, in this order, before doing anything else:
 
-1. **`docs/retrospective.md`** — the Active Rules section. These are process 
-   constraints learned the hard way. They take precedence over any 
-   instruction that contradicts them.
+1. **`docs/retrospective.md`** — the Active Rules section (currently 
+   **24 rules**). These are process constraints learned the hard way. 
+   They take precedence over any instruction that contradicts them. If 
+   the count in retrospective.md doesn't match the number here, stop 
+   and reconcile before doing any work — one of the files is out of sync.
 2. **`docs/session-handoff-{N}.md`** (latest) — current project state.
 3. **`docs/v3-plan.md`** (if it exists and work is in progress) — or 
    whatever the current-plan doc is named.
@@ -25,8 +27,10 @@ leftover state, not authoritative context.
 - Design target: Hostelworld-like density, not minimalist.
 - Fail loud during dev — no graceful degradation fallbacks that hide bugs.
 - At session end: add a retrospective entry if a failure mode was 
-  surfaced or a new rule was established. Close any Claude in Chrome 
-  tabs that were opened during the session.
+  surfaced or a new rule was established. If a new Active Rule was 
+  added, update the rule count in the "Read before acting" section 
+  above in the same commit. Close any Claude in Chrome tabs that 
+  were opened during the session.
 
 ## First-session setup
 
