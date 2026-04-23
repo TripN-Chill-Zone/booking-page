@@ -277,18 +277,12 @@
         }
       });
 
-      var offerRow = priceBox.querySelector('.tnh-offer-row');
-      if (!offerRow) {
-        offerRow = document.createElement('div');
-        offerRow.className = 'tnh-offer-row';
-        var formInline = priceBox.querySelector('.form-inline');
-        if (formInline) {
-          priceBox.insertBefore(offerRow, formInline);
-          offerRow.appendChild(formInline);
-        }
-      }
-      offerRow.appendChild(totalEl);
-      offerRow.appendChild(btn);
+      /* Append total price and Book button directly as flex siblings in
+         .b24-multipricebox. No wrapper div, no display:contents — plain
+         direct children so margin-left:auto on the button reliably pins
+         it to the right edge regardless of browser. */
+      priceBox.appendChild(totalEl);
+      priceBox.appendChild(btn);
     }
 
     var offers = document.querySelectorAll('.offer');
