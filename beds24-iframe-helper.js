@@ -229,20 +229,13 @@
         currency = currencySpan ? currencySpan.textContent : '\u20AC';
       }
 
-      var group = document.createElement('span');
-      group.className = 'tnh-book-group';
-
+      /* tnh-total-price and tnh-book-btn are independent flex siblings —
+         no wrapper div. tnh-book-btn has margin-left:auto (CSS) so it always
+         sits at the right edge of the offer row regardless of whether the
+         price is shown or hidden, and regardless of the price's text width. */
       var totalEl = document.createElement('span');
       totalEl.className = 'tnh-total-price';
-      /* Placeholder text reserves layout space so Book button never shifts position.
-         visibility:hidden keeps it invisible until a qty/bed is selected. */
-      totalEl.textContent = currency + '0000.00';
-      totalEl.style.visibility = 'hidden';
-      if (total > 0) {
-        totalEl.dataset.tnhTotal = total.toFixed(2);
-        totalEl.dataset.tnhCurrency = currency;
-      }
-      group.appendChild(totalEl);
+      totalEl.style.display = 'none';
 
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -284,8 +277,6 @@
         }
       });
 
-      group.appendChild(btn);
-
       var offerRow = priceBox.querySelector('.tnh-offer-row');
       if (!offerRow) {
         offerRow = document.createElement('div');
@@ -296,7 +287,8 @@
           offerRow.appendChild(formInline);
         }
       }
-      offerRow.appendChild(group);
+      offerRow.appendChild(totalEl);
+      offerRow.appendChild(btn);
     }
 
     var offers = document.querySelectorAll('.offer');
@@ -419,10 +411,10 @@
           if (!qty && naaSelect) qty = parseInt(naaSelect.value, 10) || 0;
           if (qty > 0) {
             totalEl.textContent = currency + total.toFixed(2);
-            totalEl.style.visibility = 'visible';
+            totalEl.style.display = '';
           } else {
-            totalEl.textContent = currency + '0000.00';
-            totalEl.style.visibility = 'hidden';
+            totalEl.style.display = 'none';
+            totalEl.textContent = '';
           }
         }
       });

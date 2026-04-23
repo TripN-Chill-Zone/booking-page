@@ -75,9 +75,11 @@
 .b24-offer-select .form-inline{display:flex!important;align-items:center!important;gap:var(--b24-space-sm)!important;flex-shrink:0!important}
 [id^="from-"],.b24-multipricebox [id^="from-"],.b24-multipricebox .at_offerfromdiv{display:inline-block!important;white-space:nowrap!important;flex-shrink:1!important;min-width:0!important}
 .tnh-price-pernight-main{font-size:13px!important;white-space:nowrap!important;font-weight:500!important;color:var(--b24-color-text-light)!important}
-.tnh-book-group{display:flex!important;align-items:center!important;gap:10px!important;margin-left:auto!important;flex-shrink:0!important;order:1!important}
-.tnh-total-price{font-size:15px!important;font-weight:700!important;color:var(--b24-color-text)!important;white-space:nowrap!important}
-.tnh-book-btn{margin-top:0!important;float:none!important;flex-shrink:0!important}
+/* tnh-total-price and tnh-book-btn are independent flex siblings (no wrapper).
+   tnh-book-btn has its own margin-left:auto so its position is always the right
+   edge of the offer row, completely unaffected by tnh-total-price changing size. */
+.tnh-total-price{font-size:15px!important;font-weight:700!important;color:var(--b24-color-text)!important;white-space:nowrap!important;flex-shrink:0!important;order:1!important}
+.tnh-book-btn{margin-top:0!important;float:none!important;flex-shrink:0!important;margin-left:auto!important;order:2!important}
 .b24-offer-select .b24-multipricebox .tnh-offer-row{display:contents!important}
 .b24-multipricebox.hidden,.b24-offer-select .b24-multipricebox.hidden{display:none!important}
 
