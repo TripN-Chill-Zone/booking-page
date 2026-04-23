@@ -20,6 +20,10 @@ https://beds24.com/control3.php?pagetype={pagetype}&id={propertyOrRoomId}
 | Property Description | `propertydescription` | property ID | Property info, features/amenities |
 | Pictures | (varies) | property/room ID | Photo upload and positioning |
 
+> For the architectural background on how Beds24 channel configuration 
+> interacts with OTA pricing models (and the specific rules for dorm 
+> properties), see `ota-channel-reference.md`.
+
 ## Developer Page Fields
 
 | Beds24 UI Name | Field ID | Purpose | Max Size | Tag Stripping? |
