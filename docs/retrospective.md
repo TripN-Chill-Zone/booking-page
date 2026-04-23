@@ -1017,3 +1017,117 @@ escapes for all emoji. Tags render correctly. Gotchas doc updated.
 **Resolution:** v3 plan (see `docs/v3-plan.md`) ports the v13 mockup 
 verbatim with the `#selectors1-` fix and preserves the pre-rebuild 
 helper JS for the dorm case.
+
+---
+
+### 2026-04-23 — Claims about third-party platform behavior must be verified in live browser
+
+**Context:** Session 13 was debugging the dorm room's price not
+updating when bed count changed, and made an authoritative claim
+that "Beds24 does not reprice for naa changes, treating it as a
+guest count field." The user correctly pushed back, noting that
+Beds24 does treat each dorm bed as a separate unit and does reprice
+on bed count changes.
+
+**What happened:** The claim was reasoning from DOM symptoms (the
+price didn't visibly change in the iframe when naa select changed),
+not from measurement (no observation of what Beds24 actually did
+behind the scenes). The wrong claim then shaped two subsequent
+attempts at "fixing" a non-problem.
+
+**Rule established:**
+
+> Claims about how a third-party platform handles a specific DOM
+> event (AJAX firing, field updating, repricing) must be treated
+> as inferences until observed in a live browser. Do not state them
+> as facts in plans, handoffs, or proposals.
+
+**Verification pattern:** For Beds24-specific behavioral questions,
+open DevTools Network panel, trigger the event in a live browser,
+observe the request/response. For cross-property comparisons, pull
+admin XML or screenshot admin pages from both properties.
+
+This rule belongs to the broader "Separate measurements from
+inferences" family (rule 1.1 in SKILL.md) but calls out the
+third-party-platform case specifically because it recurs.
+
+---
+
+### 2026-04-23 — Trace visual order before deploying structural DOM changes
+
+**Context:** Session 13's Attempt 4 on the Book button movement
+removed the `.tnh-offer-row` wrapper and appended `totalEl` and
+`btn` directly to `priceBox` (`.b24-multipricebox`). This was
+intended to simplify the flex hierarchy. It introduced two
+regressions: the `tnh-total-price` element moved to the wrong
+visual position (next to the dropdown instead of near the Book
+button), and the price stopped updating when qty changed.
+
+**What happened:** The change in DOM position altered where the
+price element landed in the flex visual order, and the new position
+was outside the selector path `enhancePrices` used to find and
+update it. Neither effect was checked before deploying.
+
+**Rule established:**
+
+> Before deploying a structural DOM change, trace through the full
+> flex/grid visual order for all affected items and compare
+> before/after. Also verify that any selectors downstream of the
+> change still resolve to the intended elements. Especially on
+> mobile where `order` values actively rearrange items.
+
+This is related to rule 1.3 (let the bug get smaller before the fix
+gets bigger) — Session 13's four-attempt escalation followed the
+pattern of scoping up each attempt rather than diagnosing why the
+bug actually happens.
+
+**Concrete cost:** Two regressions shipped to main (commit
+`67931a9`), plus the Book button bug still unresolved. Requires a
+revert and a fresh diagnostic approach in the next session.
+
+---
+
+### 2026-04-24 — Cross-property comparison first, docs second
+
+**Context:** Session 14 debugged the OCCUPANCY_EXCEEDS_MAX_PERSONS
+errors on Chill Zone. The first instinct (mine, at the start of the
+session) was to read Beds24 documentation about the error. The
+user's response was "let's look at the working property first" —
+which turned out to be the correct path.
+
+**What happened:** By comparing Chill Zone's admin configs to
+Trip'N'Hostel's (a working property in the same brand, with dorms
+that don't error), we narrowed the difference to a single field
+(Pricing Model: Per Occupancy Pricing vs Per Day Pricing) within a
+few round-trips. Reading docs afterwards confirmed the fix. Reading
+docs first would have taken longer and offered more dead-ends.
+
+**Rule established:**
+
+> When one property throws an error another doesn't, don't search
+> third-party docs blindly. The cheapest diagnostic is side-by-side
+> admin config comparison. Three fields' difference between working
+> and non-working is usually the answer.
+>
+> Compare at two levels: the admin panel UI (what fields show) AND
+> the channel-side API responses (what's actually being sent). The
+> admin panel labels (rate names like "Standard Rate") are not the
+> same as pricing type in the channel's XML response.
+
+**Applicable outside Beds24:** Any situation where two instances
+behave differently — two client configurations, two deployment
+environments, two test data setups — benefits from this diagnostic
+pattern. Compare first, theorize second.
+
+**Concrete payoff:** Session 14 resolved a multi-session blocker
+in approximately one round of investigation + documentation search,
+versus Session 13's multiple-hour diagnostic dead-ends. Difference
+is primarily the diagnostic approach.
+
+**Also worth noting:** The cross-property comparison surfaced a
+second issue (silent save failures on Daily Price Rules) that
+wouldn't have been caught without the working-vs-non-working
+contrast. The price math was off for Chill Zone's dorm even after
+the Pricing Model change; the working property showed the math
+should have worked; investigation revealed the "Price For" field
+hadn't persisted its save.

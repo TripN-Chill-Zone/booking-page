@@ -112,6 +112,67 @@ Dorm rooms have two visible (non-`.hidden`) `.b24-multipricebox` elements:
 
 Helper v14 moves the guest selector from Box 1 into Box 0 and hides Box 1. If the helper doesn't run, the dorm shows two separate rows.
 
+## Channel Manager Errors
+
+## OCCUPANCY_EXCEEDS_MAX_PERSONS (Booking.com)
+
+**Symptom:** Error emails from Beds24 referencing a Booking.com
+error like:
+
+> Room 'X' has a maximum occupancy of '1'. You cannot set price for
+> higher occupancy for rate 'Y'.
+
+Errors come through repeatedly across many dates for a single room.
+Property may still appear bookable on Booking.com's public page but
+channel manager logs show continuous errors.
+
+**Cause:** Beds24's "Pricing Model" is set to "Per Occupancy Pricing"
+(OBP) while Booking.com's rate for the affected room is configured
+as Standard pricing type. Beds24 tries to push prices for occupancies
+2, 3, 4, etc.; Booking.com rejects them because the rate only accepts
+occupancy 1.
+
+This is the expected state for dorm rooms — Booking.com does not
+support OBP for dorms, per their wiki. Beds24 sets all newly
+connected properties to OBP by default, which is wrong for properties
+with dorm rooms.
+
+**Diagnostic:**
+
+1. Compare the affected property's setup to a known working property's
+   setup (ideally same-brand, same configuration approach)
+2. Check Beds24 Pricing Model: Channel Manager → Booking.com → Mapping
+   → "Pricing Model" dropdown
+3. Check Booking.com rate pricing types: same page → click "Get the
+   Booking.com Room and Rate Codes for this Property Code" → inspect
+   XML for `<pricing type="..."` per rate
+
+If Beds24 shows "Per Occupancy Pricing" and the channel XML shows
+`<pricing type="Standard"` for the dorm's rate, that's the mismatch.
+
+**Fix:**
+
+1. Beds24 → Channel Manager → Booking.com → Mapping → change
+   "Pricing Model" from "Per Occupancy Pricing" to "Per Day Pricing"
+   → Save
+2. Beds24 → Prices → Daily Price Rules → for the affected dorm room's
+   rule → change "Price For" from "Per Person" to "Max Room Capacity"
+   → Save
+3. Reload the admin page and verify both changes persisted (silent
+   save failures are common — see "Beds24 Admin AJAX Save Is
+   Unreliable via Automation")
+4. Trigger manual channel manager sync via Beds24 admin menu
+5. Verify over the next 1-24 hours that errors have stopped and
+   Booking.com's public page shows correct prices for the affected
+   room
+
+**Non-destructive:** This change only affects what Beds24 pushes.
+Booking.com's side does not need to be touched and no Booking
+extranet settings are wiped. Existing reservations are not affected.
+
+**Related:** For the architectural background on why this happens,
+see `ota-channel-reference.md`.
+
 ## Beds24 "Add Module" Dropdown
 
 Setting the Layout page dropdown value programmatically does NOT add the module. The user must add modules manually.
@@ -325,6 +386,35 @@ The live DOM has an extra wrapper `div#selectors1-{roomId}` between `.multirooms
 Clicking the Save button via Claude in Chrome or setting the field value programmatically sometimes doesn't persist. The save appears to succeed but reloading the page shows the old value.
 
 **Solution:** Always reload the admin page after saving and verify the field contains the expected value. For the Room Order setting specifically, use `$('#settingformid').submit()` via jQuery rather than clicking the button.
+
+## Silent Save Failures on Daily Price Rule "Price For" Field
+
+**Symptom:** Changing "Price For" on a Daily Price Rule (Per Person
+→ Max Room Capacity, or similar) appears to save — Save button
+responds, no error shown — but reloading the admin page shows the
+old value.
+
+**Verified during Session 14** when the Pricing Model change on
+Chill Zone appeared to have saved but the Daily Price Rule's "Price
+For" hadn't actually persisted. The first sync after the apparent
+save pushed stale configuration to Booking.com.
+
+**Workaround:**
+
+- Always reload the Daily Price Rule edit page immediately after
+  saving and verify the field contains the expected value
+- If reload shows old value, save again and reload again to confirm
+- Watch for the "Save" button state (it should show a success
+  indicator, but this is sometimes unreliable too)
+
+**Consequence:** Deploying a Pricing Model change without verifying
+the paired "Price For" change persisted can produce wildly wrong
+prices on the channel. If the Price For field matters for how the
+calendar value is interpreted, wrong Price For = wrong pushed prices
+= guest sees wrong amount.
+
+**Always save+reload+verify when changing Beds24 admin fields that
+affect what's pushed to channels.**
 
 ## GitHub Actions CI/CD
 
