@@ -408,9 +408,10 @@
           var naaSelect = offer.querySelector('select[id^="naa"]');
           var qty = 0;
           if (qtySelect) qty = parseInt(qtySelect.value, 10) || 0;
-          if (!qty && naaSelect) qty = parseInt(naaSelect.value, 10) || 0;
+          var isDorm = !qtySelect && !!offer.querySelector('input[type="hidden"][name^="sr1-"]');
+          if (!qty && naaSelect && isDorm) qty = parseInt(naaSelect.value, 10) || 0;
           if (qty > 0) {
-            totalEl.textContent = currency + total.toFixed(2);
+            totalEl.textContent = currency + (total * qty).toFixed(2);
             totalEl.style.display = '';
           } else {
             totalEl.style.display = 'none';
