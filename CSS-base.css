@@ -80,6 +80,7 @@
    edge of the offer row, completely unaffected by tnh-total-price changing size. */
 .tnh-total-price{font-size:15px!important;font-weight:700!important;color:var(--b24-color-text)!important;white-space:nowrap!important;flex-shrink:0!important;order:1!important}
 .tnh-book-btn{margin-top:0!important;float:none!important;flex-shrink:0!important;margin-left:auto!important;order:2!important}
+.b24-offer-select .b24-multipricebox .tnh-offer-row{display:contents!important}
 .b24-multipricebox.hidden,.b24-offer-select .b24-multipricebox.hidden{display:none!important}
 
 /* Hide */
