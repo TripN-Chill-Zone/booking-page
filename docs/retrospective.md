@@ -178,6 +178,14 @@ Unicode escapes are pure ASCII, survive the save, and are evaluated
 as the correct character when the browser executes the script. 
 *(Established: 2026-04-21)*
 
+### Acceptance criteria must cover the user's first view
+When defining acceptance criteria for a fix, include tests that 
+start from the user's entry state — unselected, uninteracted-with, 
+fresh page load — not just the mid-interaction state the fix 
+targets. A fix that passes its criteria but leaves the page 
+looking wrong on first view is not verified. 
+*(Established: 2026-04-24)*
+
 ---
 
 ## Entry template
