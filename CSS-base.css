@@ -82,6 +82,15 @@
 .tnh-book-btn{margin-top:0!important;float:none!important;flex-shrink:0!important;margin-left:auto!important;order:2!important}
 .b24-offer-select .b24-multipricebox .tnh-offer-row{display:contents!important}
 .b24-multipricebox.hidden,.b24-offer-select .b24-multipricebox.hidden{display:none!important}
+/* Keep per-occupancy .b24-multipricebox elements hidden regardless
+   of Beds24 class changes. Beds24 removes .hidden from these on
+   qty > 0 (Per Occupancy Pricing rooms). Without this rule, they
+   become flex:1 siblings of the main box and halve its width,
+   causing the Book button to wrap to a new row on mobile.
+   See docs/diagnostic-book-button.md for full diagnosis. */
+[id^="selectors1-"] .b24-multipricebox:not(.pull-right) {
+  display: none !important;
+}
 
 /* Hide */
 .b24-room-106{display:none!important}.fakelink{display:none!important}select[id^="naa"]{display:none!important}.at_offername{display:none!important}.offer hr{display:none!important}[id^="price-"][class*="b24-roomprice"]{display:none!important}
