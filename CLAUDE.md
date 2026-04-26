@@ -5,7 +5,7 @@
 Every session, in this order, before doing anything else:
 
 1. **`docs/retrospective.md`** — the Active Rules section (currently 
-   **25 rules**). These are process constraints learned the hard way. 
+   **27 rules**). These are process constraints learned the hard way. 
    They take precedence over any instruction that contradicts them. If 
    the count in retrospective.md doesn't match the number here, stop 
    and reconcile before doing any work — one of the files is out of sync.

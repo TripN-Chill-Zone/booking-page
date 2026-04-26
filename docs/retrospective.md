@@ -186,6 +186,25 @@ targets. A fix that passes its criteria but leaves the page
 looking wrong on first view is not verified. 
 *(Established: 2026-04-24)*
 
+### Adversarial review of the previous session opens each fix session
+Sessions that follow a fix session begin by adversarially reviewing 
+the previous session's claimed outcomes. For each pass criterion 
+the previous session claimed, attempt to falsify it before doing 
+new work. The previous session's confidence is not evidence; 
+measured behavior is. If a claimed pass survives adversarial 
+re-examination, build on it. If it doesn't, surface the discrepancy 
+before proceeding. *(Established: 2026-04-24)*
+
+### Fix session prompts include a contract section
+Every fix-session prompt includes a one-paragraph contract 
+statement: what behavior the fix must satisfy from the user's 
+perspective, expressed in observable terms (what they can see, 
+do, or click). Acceptance criteria translate the contract into 
+specific tests. Implementation details belong in the diagnostic, 
+not the contract. The contract is what verification proves; the 
+implementation is one path to that proof, but not the only one. 
+*(Established: 2026-04-24)*
+
 ---
 
 ## Entry template
