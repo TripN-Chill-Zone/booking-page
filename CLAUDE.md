@@ -31,6 +31,11 @@ leftover state, not authoritative context.
   added, update the rule count in the "Read before acting" section 
   above in the same commit. Close any Claude in Chrome tabs that 
   were opened during the session.
+- Numbered sessions are full work sessions that progress the 
+  project. Small post-session commits (rule additions, doc 
+  fixes, count updates) belong to the previous full session 
+  and are not numbered as their own session. See 
+  docs/project-pipeline.md for the canonical session list.
 
 ## First-session setup
 
