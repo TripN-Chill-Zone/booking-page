@@ -1,3 +1,16 @@
+> **Project archived 2026-05-07.** See
+> `docs/architecture-pivot-decision.md` for the reasoning. The
+> successor project lives at
+> `https://github.com/rock-solid-sites/beds24-booking-plugin`.
+>
+> **Known bug in current code:** `booking-widget.js` line 329 has
+> `numadult` hardcoded to `1` regardless of the widget's guest
+> picker, affecting current bookings. Fixed by construction in
+> the successor (per-room adult count is sent via the multi-room
+> URL scheme).
+
+---
+
 # Beds24 Booking Page — Project Entry Point
 
 ## Read before acting
